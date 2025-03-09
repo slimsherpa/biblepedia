@@ -8,6 +8,7 @@ import ChaptersColumn from './ChaptersColumn';
 import VersesColumn from './VersesColumn';
 import CommentaryColumn from './CommentaryColumn';
 import ErrorBoundary from './ErrorBoundary';
+import Header from './Header';
 
 interface BibleVersion {
   id: string;
@@ -128,33 +129,14 @@ export default function BibleExplorer() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Header with version selector */}
-      <header className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white p-3 shadow-md">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
-          <h1 className="text-2xl font-bold mb-2 md:mb-0 flex items-center">
-            <span className="font-biblepedia lowercase">biblepedia.io</span>
-            <span className="text-blue-300 ml-2 text-xs uppercase tracking-wider font-light">Scholarly Wiki</span>
-          </h1>
-          
-          <div className="flex items-center">
-            <label htmlFor="version-select" className="mr-2 text-blue-100 text-sm">
-              Bible Version:
-            </label>
-            <ErrorBoundary fallback={
-              <select className="bg-white text-gray-900 border border-blue-400 rounded-md px-3 py-1 text-sm">
-                <option value="en-kjv">King James Version (en)</option>
-              </select>
-            }>
-              <VersionSelector 
-                versions={versions} 
-                selectedVersion={selectedVersion} 
-                onChange={setSelectedVersion} 
-                loading={loading} 
-              />
-            </ErrorBoundary>
-          </div>
-        </div>
-      </header>
+      <ErrorBoundary>
+        <Header 
+          version={selectedVersion}
+          onVersionChange={setSelectedVersion}
+          versions={versions}
+          loading={loading}
+        />
+      </ErrorBoundary>
 
       {/* Main content with four columns */}
       <div className="flex-1 flex overflow-hidden">

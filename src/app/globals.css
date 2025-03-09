@@ -26,6 +26,20 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Custom styles for select dropdowns */
@@ -44,15 +58,11 @@ select {
 
 /* Logo positioning */
 .biblepedia-logo {
-  @apply pl-6 py-2 flex items-center gap-2;
+  @apply pl-2 flex items-center;
 }
 
 .biblepedia-logo h1 {
-  @apply text-xl font-semibold text-white;
-}
-
-.biblepedia-logo span {
-  @apply text-sm font-medium text-blue-100;
+  @apply text-2xl font-semibold text-white tracking-tight;
 }
 
 /* Scrollable containers */

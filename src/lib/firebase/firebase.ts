@@ -1,21 +1,19 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCAGWJxBrHjnK3wSpxTOM2p2Vd8ugEpET8",
+  authDomain: "biblepediaio.firebaseapp.com",
+  projectId: "biblepediaio",
+  storageBucket: "biblepediaio.firebasestorage.app",
+  messagingSenderId: "136201813768",
+  appId: "1:136201813768:web:57a5509b26d8bb752bb6bd",
+  measurementId: "G-R2XN5X47TE"
 };
 
 // Initialize Firebase
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
 
-export { app, auth, db, storage };
+export { app, auth };

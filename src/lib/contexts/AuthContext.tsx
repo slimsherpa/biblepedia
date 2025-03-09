@@ -1,7 +1,14 @@
 "use client";
 
-import React, { createContext, useEffect, useState } from "react";
-import { signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut } from "firebase/auth";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut as firebaseSignOut,
+  getAuth,
+  setPersistence,
+  browserLocalPersistence
+} from "firebase/auth";
 import { User } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 
@@ -24,6 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set persistence to LOCAL (instead of SESSION) to persist the auth state
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
@@ -35,9 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
+      // Clear any existing popup sessions
+      const auth = getAuth();
+      await auth.signOut();
+      
+      // Try to sign in
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google", error);
+    } catch (error: any) {
+      // Only log errors that aren't user cancellations
+      if (error.code !== 'auth/cancelled-popup-request' && 
+          error.code !== 'auth/popup-closed-by-user') {
+        console.error("Error signing in with Google:", error);
+      }
     }
   };
 
@@ -45,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await firebaseSignOut(auth);
     } catch (error) {
-      console.error("Error signing out", error);
+      console.error("Error signing out:", error);
     }
   };
 
@@ -55,5 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+export const useAuth = () => useContext(AuthContext);
 
 export { AuthContext };
