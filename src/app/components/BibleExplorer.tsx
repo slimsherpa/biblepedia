@@ -132,7 +132,7 @@ export default function BibleExplorer() {
       <header className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white p-3 shadow-md">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
           <h1 className="text-2xl font-bold mb-2 md:mb-0 flex items-center">
-            <span className="font-biblepedia lowercase">biblepedia</span>
+            <span className="font-biblepedia lowercase">biblepedia.io</span>
             <span className="text-blue-300 ml-2 text-xs uppercase tracking-wider font-light">Scholarly Wiki</span>
           </h1>
           
@@ -197,7 +197,7 @@ export default function BibleExplorer() {
       
       {/* Footer */}
       <footer className="bg-gray-100 border-t p-2 text-center text-gray-600 text-xs">
-        <p>BiblePedia © 2023 - A scholarly Bible wiki for academic study and research</p>
+        <p>biblepedia.io © {new Date().getFullYear()} - A scholarly Bible wiki for academic study and research</p>
       </footer>
     </div>
   );

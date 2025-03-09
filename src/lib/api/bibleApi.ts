@@ -13,23 +13,44 @@ const BASE_URL = '/api/bible';
 // Define supported Bible versions
 export const BIBLE_VERSIONS: BibleVersion[] = [
   { 
+    id: '9879dbb7cfe39e4d-01', 
+    name: 'New Revised Standard Version', 
+    abbreviation: 'NRSV',
+    language: 'en',
+    isSupported: true
+  },
+  { 
     id: 'de4e12af7f28f599-01', 
     name: 'King James Version', 
     abbreviation: 'KJV',
     language: 'en',
     isSupported: true
   },
-  { 
-    id: '9879dbb7cfe39e4d-01', 
-    name: 'New Revised Standard Version', 
-    abbreviation: 'NRSV',
-    language: 'en',
+  {
+    id: '0b262f1ed7f084a6-01',
+    name: 'Hebrew Bible',
+    abbreviation: 'WLC',
+    language: 'heb',
+    isSupported: true
+  },
+  {
+    id: '7644de2e4c5188e5-01',
+    name: 'Text-Critical Greek New Testament',
+    abbreviation: 'GNT',
+    language: 'grc',
+    isSupported: true
+  },
+  {
+    id: 'c114c33098c4fef1-01',
+    name: 'Brenton Greek Septuagint',
+    abbreviation: 'LXX',
+    language: 'grc',
     isSupported: true
   }
 ];
 
 // Default version to use
-export const DEFAULT_VERSION = BIBLE_VERSIONS[0].id; // KJV
+export const DEFAULT_VERSION = BIBLE_VERSIONS[0].id;
 
 // Types
 export interface BibleVersion {
@@ -227,6 +248,9 @@ function getActualVersionId(versionId: string): string {
   const versionMap: Record<string, string> = {
     'kjv': 'de4e12af7f28f599-01',
     'nrsv': '9879dbb7cfe39e4d-01',
+    'wlc': '0b262f1ed7f084a6-01',
+    'gnt': '7644de2e4c5188e5-01',
+    'lxx': 'c114c33098c4fef1-01',
     'en-kjv': 'de4e12af7f28f599-01',
     'en-nrsv': '9879dbb7cfe39e4d-01'
   };
@@ -237,13 +261,14 @@ function getActualVersionId(versionId: string): string {
   }
 
   // If exact version ID is provided and supported, use it
-  if (versionId && BIBLE_VERSIONS.some(v => v.id === versionId && v.isSupported)) {
+  const version = BIBLE_VERSIONS.find(v => v.id === versionId);
+  if (version?.isSupported) {
     return versionId;
   }
 
-  // Default to KJV if version not found
-  console.warn(`Bible version ${versionId} not found, using default version (KJV)`);
-  return DEFAULT_VERSION;
+  // If version not found, return null to indicate failure instead of defaulting
+  console.warn(`Bible version ${versionId} not found`);
+  return versionId; // Return the original ID and let the API handle the error
 }
 
 /**
