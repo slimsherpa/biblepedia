@@ -33,21 +33,17 @@ service cloud.firestore {
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'admin', 'scholar']);
     }
 
+    // Allow anyone to read verses, but only admins can write
+    match /verses/{verseId} {
+      allow read: if true;  // Everyone can read cached verses
+      allow write: if isAdmin() || isSuperAdmin();  // Only admins can update cache
+    }
+
     // Users collection
     match /users/{userId} {
-      // Anyone can read user profiles
       allow read: if true;
-      
-      // Users can create their own profile
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      
-      // Users can update their own profile, except role field
-      // Only admins can update role field
-      allow update: if isOwner(userId) && 
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'updatedAt']));
-      
-      // Only superadmin can delete profiles
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin() || isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
@@ -62,17 +58,21 @@ service cloud.firestore {
     match /commentary_edits/{editId} {
       allow read: if true;
       allow create: if canAddCommentary();
+      allow update: if false;  // Edits should be immutable
       allow delete: if isSuperAdmin();
     }
 
     // Commentary debates collection
     match /commentary_debates/{postId} {
       allow read: if true;
-      allow create: if canAddCommentary();
-      allow update: if canAddCommentary() || 
-        (isSignedIn() && resource.data.author.uid == request.auth.uid);
-      allow delete: if isSuperAdmin() || 
-        (isSignedIn() && resource.data.author.uid == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        // Allow users to edit their own posts
+        request.auth.uid == resource.data.author.uid ||
+        // Or if they're an admin
+        isAdmin() || isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
     }
   }
 } 
