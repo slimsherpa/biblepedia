@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
+import Link from 'next/link';
 
 interface HeaderProps {
   version?: string;
@@ -10,13 +11,20 @@ interface HeaderProps {
   loading?: boolean;
 }
 
+const ROLE_BADGES = {
+  superadmin: { label: 'Super Admin', class: 'bg-purple-100 text-purple-800' },
+  admin: { label: 'Admin', class: 'bg-blue-100 text-blue-800' },
+  scholar: { label: 'Scholar', class: 'bg-green-100 text-green-800' },
+  user: { label: 'User', class: 'bg-gray-100 text-gray-800' }
+};
+
 export default function Header({ 
   version = 'en-nrsv',
   onVersionChange = () => {},
   versions = [],
   loading = false
 }: HeaderProps) {
-  const { user, signInWithGoogle, signOut } = useAuth();
+  const { user, userProfile, signInWithGoogle, signOut } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -104,13 +112,42 @@ export default function Header({
             
             {/* Dropdown menu */}
             {user && isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 animate-fadeIn">
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg py-1 z-50 animate-fadeIn">
                 <div className="px-4 py-2 border-b">
-                  <p className="text-sm font-medium text-gray-900">{user.displayName}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900">{user.displayName}</p>
+                    {userProfile && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${ROLE_BADGES[userProfile.role].class}`}>
+                        {ROLE_BADGES[userProfile.role].label}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{user.email}</p>
                 </div>
+
+                {/* Profile Link */}
+                <Link 
+                  href={`/profile/${user.uid}`}
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  View Profile
+                </Link>
+
+                {/* Admin Controls - Only visible to admins */}
+                {userProfile && ['superadmin', 'admin'].includes(userProfile.role) && (
+                  <>
+                    <div className="border-t"></div>
+                    <Link 
+                      href="/admin"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Admin Control Center
+                    </Link>
+                  </>
+                )}
+
                 {/* Mobile-only version selector */}
-                <div className="sm:hidden px-4 py-2 border-b">
+                <div className="sm:hidden px-4 py-2 border-t">
                   <label htmlFor="mobile-version-select" className="block text-xs text-gray-500 mb-1">
                     Bible Version
                   </label>
@@ -132,6 +169,8 @@ export default function Header({
                     )}
                   </select>
                 </div>
+
+                <div className="border-t"></div>
                 <button 
                   onClick={() => {
                     signOut();

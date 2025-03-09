@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { fetchVerse, BIBLE_VERSIONS } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
 import { motion } from 'framer-motion';
+import VerseCommentaryDisplay from './VerseCommentaryDisplay';
 
 interface CommentaryColumnProps {
   version: string;
@@ -14,8 +15,8 @@ interface CommentaryColumnProps {
 
 interface VerseData {
   version: string;
-  text: string;
   displayName: string;
+  text: string;
   language: string;
   type: 'modern' | 'classical' | 'original';
 }
@@ -145,6 +146,28 @@ function isVersionAvailable(version: ExtendedBibleVersion): boolean {
   return true; // All versions in BIBLE_VERSIONS are immediately available
 }
 
+// Helper function to get available versions based on book
+function getAvailableVersions(book: string): ExtendedBibleVersion[] {
+  const language = getOriginalLanguage(book);
+  
+  // Start with modern and classical versions
+  const baseVersions = EXTENDED_VERSIONS.filter(v => 
+    v.language === 'en'
+  );
+  
+  // Add appropriate original language versions
+  const originalVersions = EXTENDED_VERSIONS.filter(v => {
+    if (language === 'Hebrew' || language === 'Hebrew and Aramaic') {
+      return v.language === 'heb';
+    } else if (language === 'Greek') {
+      return v.language === 'grc';
+    }
+    return false;
+  });
+  
+  return [...baseVersions, ...originalVersions];
+}
+
 export default function CommentaryColumn({ 
   version, 
   book, 
@@ -155,43 +178,6 @@ export default function CommentaryColumn({
   const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [originalLanguageInfo, setOriginalLanguageInfo] = useState<{
-    language: string;
-    isAvailable: boolean;
-  } | null>(null);
-
-  // Get available versions based on book
-  const getAvailableVersions = (book: string): ExtendedBibleVersion[] => {
-    const language = getOriginalLanguage(book);
-    console.log('Book language:', language);
-    
-    // Start with modern and classical versions
-    const baseVersions = EXTENDED_VERSIONS.filter(v => 
-      v.language === 'en'
-    );
-    console.log('Base versions:', baseVersions);
-    
-    // Add appropriate original language versions
-    const originalVersions = EXTENDED_VERSIONS.filter(v => {
-      if (language === 'Hebrew' || language === 'Hebrew and Aramaic') {
-        return v.language === 'heb';
-      } else if (language === 'Greek') {
-        return v.language === 'grc';
-      }
-      return false;
-    });
-    console.log('Original versions:', originalVersions);
-    
-    // Store original language info
-    setOriginalLanguageInfo({
-      language,
-      isAvailable: originalVersions.length > 0
-    });
-    
-    const allVersions = [...baseVersions, ...originalVersions];
-    console.log('All available versions:', allVersions);
-    return allVersions;
-  };
 
   useEffect(() => {
     async function loadVerse() {
@@ -207,30 +193,28 @@ export default function CommentaryColumn({
         const availableVersions = getAvailableVersions(book);
         console.log('Available versions for fetching:', availableVersions);
         
-        // Always fetch NRSV first
-        const nrsvVersion = availableVersions.find(v => v.id === '9879dbb7cfe39e4d-01');
-        if (!nrsvVersion) {
-          throw new Error('NRSV version not found');
+        // Always fetch current version first
+        const currentVersion = availableVersions.find(v => v.id === version) || availableVersions[0];
+        if (!currentVersion) {
+          throw new Error('Current version not found');
         }
         
-        const nrsvData = await fetchVerse(nrsvVersion.id, book, chapter, verse);
+        const currentData = await fetchVerse(currentVersion.id, book, chapter, verse);
         let verses: VerseData[] = [{
-          version: nrsvVersion.abbreviation,
-          displayName: nrsvVersion.displayName,
-          text: nrsvData.text,
-          language: nrsvVersion.language,
-          type: nrsvVersion.type
+          version: currentVersion.abbreviation,
+          displayName: currentVersion.displayName,
+          text: currentData.text,
+          language: currentVersion.language,
+          type: currentVersion.type
         }];
         
         // If showing all translations, fetch the rest
         if (showAllTranslations) {
           const otherVersionPromises = availableVersions
-            .filter(v => v.id !== nrsvVersion.id)
+            .filter(v => v.id !== currentVersion.id)
             .map(async (v) => {
               try {
-                console.log(`Attempting to fetch version ${v.name} (${v.id}) for ${book} ${chapter}:${verse}`);
                 const data = await fetchVerse(v.id, book, chapter, verse);
-                console.log(`Successfully fetched ${v.name}:`, data);
                 return {
                   version: v.abbreviation,
                   displayName: v.displayName,
@@ -246,7 +230,6 @@ export default function CommentaryColumn({
 
           const results = await Promise.all(otherVersionPromises);
           const successfulResults = results.filter((v): v is VerseData => v !== null);
-          console.log('Successfully fetched versions:', successfulResults);
           verses = [...verses, ...successfulResults];
         }
         
@@ -288,7 +271,7 @@ export default function CommentaryColumn({
       </div>
       
       <div className="commentary-container overflow-y-auto">
-        {!book || !chapter ? (
+        {!book || !chapter || !verse ? (
           <div className="flex justify-center items-center h-full text-gray-500 text-sm font-sans">
             Select a verse to view commentary
           </div>
@@ -297,11 +280,11 @@ export default function CommentaryColumn({
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700"></div>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-500 font-sans">{error}</div>
+          <div className="text-sm text-red-500 font-sans p-4">{error}</div>
         ) : (
-          <div className="space-y-6 p-4">
-            {/* Verse Text */}
-            <div className="space-y-4">
+          <div className="p-4">
+            {/* Translations Section */}
+            <div className="space-y-4 mb-8">
               {verses.map((verseData, index) => (
                 <motion.div
                   key={verseData.version}
@@ -343,42 +326,8 @@ export default function CommentaryColumn({
               )}
             </div>
 
-            {/* Scholar Commentary */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium">
-                  D
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Dr. Dan McClellan</div>
-                  <div className="text-xs text-gray-500">Biblical Scholar, Ph.D. in Theology</div>
-                </div>
-              </div>
-              
-              <div className="text-sm text-gray-700 leading-relaxed">
-                This verse demonstrates important theological concepts...
-              </div>
-            </div>
-
-            {/* Cross References */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Cross References</h3>
-              <div className="space-y-2">
-                <button className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                  <span>→</span>
-                  <span>Matthew 5:17</span>
-                </button>
-                <button className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                  <span>→</span>
-                  <span>Romans 8:28</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Add Commentary Button */}
-            <button className="w-full py-2 px-4 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium transition-colors">
-              + Add Commentary
-            </button>
+            {/* Commentary Section */}
+            <VerseCommentaryDisplay verseId={`${book?.toUpperCase()}.${chapter}.${verse}`} />
           </div>
         )}
       </div>

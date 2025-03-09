@@ -7,13 +7,16 @@ import {
   signOut as firebaseSignOut,
   getAuth,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  User
 } from "firebase/auth";
-import { User } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import { UserProfile } from "../types/user";
+import { createUserProfile, getUserProfile } from "../firebase/userManagement";
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -21,6 +24,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  userProfile: null,
   loading: true,
   signInWithGoogle: async () => {},
   signOut: async () => {},
@@ -28,14 +32,34 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Set persistence to LOCAL (instead of SESSION) to persist the auth state
     setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
+      
+      if (user) {
+        // Get or create user profile
+        let profile = await getUserProfile(user.uid);
+        
+        if (!profile) {
+          profile = await createUserProfile(
+            user.uid,
+            user.email || '',
+            user.displayName || 'Anonymous User',
+            user.photoURL || undefined
+          );
+        }
+        
+        setUserProfile(profile);
+      } else {
+        setUserProfile(null);
+      }
+      
       setLoading(false);
     });
 
@@ -63,13 +87,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOutUser = async () => {
     try {
       await firebaseSignOut(auth);
+      setUserProfile(null);
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut: signOutUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      userProfile,
+      loading, 
+      signInWithGoogle, 
+      signOut: signOutUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
