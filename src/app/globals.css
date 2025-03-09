@@ -1,33 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --background-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-rgb: 0, 0, 0;
   }
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Custom styles for select dropdowns */
+select {
+  @apply bg-white text-gray-900;
+  option {
+    @apply bg-white text-gray-900;
+  }
+}
+
+/* Custom font classes */
+.font-biblepedia {
+  font-family: 'Crimson Pro', serif;
+  letter-spacing: -0.02em;
+}
+
+/* Logo positioning */
+.biblepedia-logo {
+  @apply pl-6 py-2 flex items-center gap-2;
+}
+
+.biblepedia-logo h1 {
+  @apply text-xl font-semibold text-white;
+}
+
+.biblepedia-logo span {
+  @apply text-sm font-medium text-blue-100;
+}
+
+/* Scrollable containers */
+.scrollable-content {
+  @apply flex-1 overflow-y-auto overflow-x-hidden bg-white;
+  scrollbar-gutter: stable;
+}
+
+/* Custom Scrollbar Styles - Applied to all scrollable areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #CBD5E1;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94A3B8;
+}
+
+/* Hover effect for interactive elements */
+.hover-effect {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.hover-effect:hover {
+  @apply shadow-sm bg-gray-50;
+}
+
+/* Selection styles */
+.selected-item {
+  @apply bg-blue-50 text-blue-700 font-medium shadow-sm;
+}
+
+/* Bible text styles */
+.bible-text {
+  @apply text-sm text-gray-900 leading-relaxed font-sans;
+}
+
+.verse-number {
+  @apply text-sm font-medium text-blue-600 mr-2;
+}
+
+/* Column header styles */
+.column-header {
+  @apply p-3 border-b bg-white;
+}
+
+.column-header h2 {
+  @apply text-sm font-semibold text-gray-900 font-sans;
+}
+
+/* Column container styles */
+.column-container {
+  @apply flex-1 overflow-y-auto bg-white p-2 space-y-1 custom-scrollbar;
+}
+
+/* Column Layout Styles */
+.bible-column {
+  @apply flex flex-col h-full bg-white border-r overflow-hidden;
+}
+
+.bible-column-header {
+  @apply p-2 border-b bg-white;
+}
+
+.bible-column-header h2 {
+  @apply text-sm font-semibold text-gray-900 font-sans;
+}
+
+.bible-column-content {
+  @apply flex-1 overflow-y-auto overflow-x-hidden bg-white custom-scrollbar;
+}
+
+/* Verses Column */
+.verses-container {
+  @apply flex-1 overflow-y-auto overflow-x-hidden bg-white custom-scrollbar p-4;
+}
+
+.verse-item {
+  @apply py-2;
+}
+
+/* Commentary Column */
+.commentary-container {
+  @apply flex-1 overflow-y-auto overflow-x-hidden bg-white custom-scrollbar;
+  padding: 1rem;
+}
+
+/* List items (Books, Chapters, Verses) */
+.bible-list-item {
+  @apply w-full py-2 px-3 text-left transition-all font-sans text-sm;
+}
+
+.bible-list-item.selected {
+  @apply bg-blue-50 text-blue-700 font-medium;
+}
+
+.bible-list-item:not(.selected) {
+  @apply hover:bg-gray-50 text-gray-700;
+}
+
+/* Commentary styles */
+.commentary-section {
+  @apply p-3 border-b;
+}
+
+.commentary-title {
+  @apply text-sm font-semibold text-gray-900 mb-2;
+}
+
+.commentary-text {
+  @apply text-sm text-gray-700 leading-relaxed;
+}
+
+/* List dividers */
+.divided-list {
+  @apply divide-y divide-gray-100;
+}
+
+.divided-list > * {
+  @apply py-3 px-4;
+}
+
+/* Loading states */
+.loading-spinner {
+  @apply animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700;
+}
+
+/* Empty states */
+.empty-state {
+  @apply flex justify-center items-center h-full text-gray-500 text-sm font-sans;
+}
+
+/* Error states */
+.error-state {
+  @apply text-sm text-red-500 font-sans p-2;
 }
