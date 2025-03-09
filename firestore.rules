@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email == 'rileyjadamson@gmail.com';
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin');
+    }
+    
+    function isScholar() {
+      return isSignedIn() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'scholar' ||
+         isAdmin());
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function canAddCommentary() {
+      return isSignedIn() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'admin', 'scholar']);
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read user profiles
+      allow read: if true;
+      
+      // Users can create their own profile
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      
+      // Users can update their own profile, except role field
+      // Only admins can update role field
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'updatedAt']));
+      
+      // Only superadmin can delete profiles
+      allow delete: if isSuperAdmin();
+    }
+
+    // Commentary collection
+    match /commentaries/{verseId} {
+      allow read: if true;
+      allow create, update: if canAddCommentary();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Commentary edits collection
+    match /commentary_edits/{editId} {
+      allow read: if true;
+      allow create: if canAddCommentary();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Commentary debates collection
+    match /commentary_debates/{postId} {
+      allow read: if true;
+      allow create: if canAddCommentary();
+      allow update: if canAddCommentary() || 
+        (isSignedIn() && resource.data.author.uid == request.auth.uid);
+      allow delete: if isSuperAdmin() || 
+        (isSignedIn() && resource.data.author.uid == request.auth.uid);
+    }
+  }
+} 
