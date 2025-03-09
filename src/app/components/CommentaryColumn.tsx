@@ -280,18 +280,18 @@ export default function CommentaryColumn({
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700"></div>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-500 font-sans p-4">{error}</div>
+          <div className="text-sm text-red-500 font-sans p-2">{error}</div>
         ) : (
-          <div className="p-4">
+          <div className="divide-y divide-gray-100">
             {/* Translations Section */}
-            <div className="space-y-4 mb-8">
+            <div className="px-3 py-2 space-y-2">
               {verses.map((verseData, index) => (
                 <motion.div
                   key={verseData.version}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className={`rounded-lg p-4 ${
+                  className={`rounded-lg p-2 ${
                     verseData.type === 'original' 
                       ? 'bg-blue-50' 
                       : verseData.type === 'classical'
@@ -299,7 +299,7 @@ export default function CommentaryColumn({
                       : 'bg-white border border-gray-200'
                   }`}
                 >
-                  <div className="text-sm text-gray-500 font-sans mb-2 flex justify-between items-center">
+                  <div className="text-sm text-gray-500 font-sans mb-1 flex justify-between items-center">
                     <span>{formatBookName(book)} {chapter}:{verse}</span>
                     <div className="flex items-center gap-2">
                       {verseData.type === 'original' && (
@@ -319,7 +319,7 @@ export default function CommentaryColumn({
               {!showAllTranslations && (
                 <button 
                   onClick={() => setShowAllTranslations(true)}
-                  className="w-full py-2 px-4 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium transition-colors"
+                  className="w-full py-1.5 px-3 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium transition-colors"
                 >
                   SEE ADDITIONAL TRANSLATIONS
                 </button>
@@ -327,7 +327,9 @@ export default function CommentaryColumn({
             </div>
 
             {/* Commentary Section */}
-            <VerseCommentaryDisplay verseId={`${book?.toUpperCase()}.${chapter}.${verse}`} />
+            <div className="px-3 py-2">
+              <VerseCommentaryDisplay verseId={`${book?.toUpperCase()}.${chapter}.${verse}`} />
+            </div>
           </div>
         )}
       </div>

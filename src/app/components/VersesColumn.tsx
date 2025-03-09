@@ -4,11 +4,7 @@ import { useState, useEffect } from 'react';
 import { fetchVerses } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
 import { motion } from 'framer-motion';
-
-interface Verse {
-  number: number;
-  text: string;
-}
+import { getVerseCommentary } from '@/lib/firebase/commentaryManagement';
 
 interface VersesColumnProps {
   version: string;
@@ -16,6 +12,12 @@ interface VersesColumnProps {
   chapter: number | null;
   selectedVerse: number | null;
   onSelectVerse: (verse: number) => void;
+}
+
+interface Verse {
+  number: number;
+  text: string;
+  hasCommentary?: boolean;
 }
 
 // Default verses to use if API fails
@@ -35,9 +37,6 @@ export default function VersesColumn({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Mock data for verses with commentary
-  const versesWithCommentary = [1, 5, 10, 15, 20, 25];
-
   useEffect(() => {
     async function loadVerses() {
       if (!book || !chapter) {
@@ -48,19 +47,29 @@ export default function VersesColumn({
       try {
         setLoading(true);
         const data = await fetchVerses(version, book, chapter);
-        if (Array.isArray(data) && data.length > 0) {
-          setVerses(data);
-          setError(null);
-        } else {
-          console.error('Invalid data format from Bible API:', data);
-          setError('Failed to load verses: Invalid data format');
-          setVerses(DEFAULT_VERSES);
-        }
+        
+        // Fetch commentary status for each verse
+        const versesWithCommentary = await Promise.all(
+          data.map(async (verse) => {
+            const verseId = `${book.toUpperCase()}.${chapter}.${verse.number}`;
+            const commentary = await getVerseCommentary(verseId);
+            return {
+              ...verse,
+              hasCommentary: commentary !== null && (
+                commentary.currentContent?.trim() !== '' || 
+                (commentary.edits && commentary.edits.length > 0) ||
+                (commentary.debate && commentary.debate.length > 0)
+              )
+            };
+          })
+        );
+
+        setVerses(versesWithCommentary);
+        setError(null);
       } catch (err) {
         const errorMessage = getErrorMessage(err);
         setError(errorMessage);
         console.error('Error loading verses:', errorMessage);
-        setVerses(DEFAULT_VERSES);
       } finally {
         setLoading(false);
       }
@@ -75,7 +84,7 @@ export default function VersesColumn({
         <h2 className="text-sm font-semibold text-gray-900 font-sans">Verses</h2>
       </div>
       
-      <div className="verses-container">
+      <div className="verses-container overflow-y-auto">
         {!book || !chapter ? (
           <div className="flex justify-center items-center h-full text-gray-500 text-sm font-sans">
             Select a chapter
@@ -110,7 +119,7 @@ export default function VersesColumn({
                   {verse.number}
                 </span>
                 <span className="flex-1">{verse.text}</span>
-                {versesWithCommentary.includes(verse.number) && (
+                {verse.hasCommentary && (
                   <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex-shrink-0">
                     ✓
                   </span>
