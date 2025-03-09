@@ -9,74 +9,87 @@ import { getVerseCommentary } from '@/lib/firebase/commentaryManagement';
 interface VersesColumnProps {
   version: string;
   book: string | null;
-  chapter: number | null;
-  selectedVerse: number | null;
-  onSelectVerse: (verse: number) => void;
+  chapter: number | 'S' | null;
+  selectedVerse: number | 'S' | null;
+  onSelectVerse: (verse: number | 'S') => void;
+  verses: { number: number | 'S'; content: string }[];
+  loading: boolean;
+  error: string | null;
 }
 
 interface Verse {
-  number: number;
+  number: number | 'S';
   text: string;
   hasCommentary?: boolean;
 }
 
 // Default verses to use if API fails
-const DEFAULT_VERSES: Verse[] = Array.from({ length: 10 }, (_, i) => ({ 
-  number: i + 1, 
-  text: `This is placeholder text for verse ${i + 1}.` 
-}));
+const DEFAULT_VERSES: Verse[] = [
+  { number: 'S', text: 'Summary text summary text summary text summary text' },
+  ...Array.from({ length: 10 }, (_, i) => ({ 
+    number: i + 1, 
+    text: `This is placeholder text for verse ${i + 1}.` 
+  }))
+];
 
 export default function VersesColumn({ 
   version, 
   book, 
   chapter, 
   selectedVerse, 
-  onSelectVerse 
+  onSelectVerse,
+  verses: incomingVerses,
+  loading,
+  error: incomingError
 }: VersesColumnProps) {
-  const [verses, setVerses] = useState<Verse[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [versesWithCommentary, setVersesWithCommentary] = useState<Verse[]>([]);
+
+  // Process verses to add commentary status
   useEffect(() => {
-    async function loadVerses() {
-      if (!book || !chapter) {
-        setVerses([]);
+    let isCancelled = false;
+
+    async function addCommentaryStatus() {
+      console.log('Processing verses:', { incomingVerses, chapter });
+      
+      // Clear verses immediately
+      setVersesWithCommentary([]);
+
+      if (!incomingVerses.length || !book || !chapter) {
         return;
       }
 
       try {
-        setLoading(true);
-        const data = await fetchVerses(version, book, chapter);
-        
-        // Fetch commentary status for each verse
-        const versesWithCommentary = await Promise.all(
-          data.map(async (verse) => {
-            const verseId = `${book.toUpperCase()}.${chapter}.${verse.number}`;
-            const commentary = await getVerseCommentary(verseId);
+        const processed = await Promise.all(
+          incomingVerses.map(async (verse) => {
+            const hasCommentary = await getVerseCommentary(`${book.toUpperCase()}.${chapter}.${verse.number}`) !== null;
             return {
-              ...verse,
-              hasCommentary: commentary !== null && (
-                commentary.currentContent?.trim() !== '' || 
-                (commentary.edits && commentary.edits.length > 0) ||
-                (commentary.debate && commentary.debate.length > 0)
-              )
-            };
+              number: verse.number,
+              text: verse.content,
+              hasCommentary
+            } as Verse;
           })
         );
 
-        setVerses(versesWithCommentary);
-        setError(null);
+        if (!isCancelled) {
+          console.log('Setting processed verses:', processed.length);
+          setVersesWithCommentary(processed);
+        }
       } catch (err) {
-        const errorMessage = getErrorMessage(err);
-        setError(errorMessage);
-        console.error('Error loading verses:', errorMessage);
-      } finally {
-        setLoading(false);
+        console.error('Error processing verses:', err);
       }
     }
 
-    loadVerses();
-  }, [version, book, chapter]);
+    addCommentaryStatus();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [incomingVerses, book, chapter]);
+
+  useEffect(() => {
+    setError(incomingError);
+  }, [incomingError]);
 
   return (
     <div className="flex-1 border-r h-full flex flex-col bg-white">
@@ -95,15 +108,15 @@ export default function VersesColumn({
           </div>
         ) : error ? (
           <div className="text-sm text-red-500 font-sans">{error}</div>
-        ) : verses.length === 0 ? (
+        ) : versesWithCommentary.length === 0 ? (
           <div className="text-sm text-gray-500 font-sans">No verses available</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {verses.map((verse) => (
+            {versesWithCommentary.map((verse) => (
               <motion.button
                 key={verse.number}
                 className={`w-full py-2 px-3 text-left transition-all font-sans text-sm flex items-start group ${
-                  selectedVerse === verse.number 
+                  selectedVerse === verse.number
                     ? 'bg-blue-50 text-blue-700 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
@@ -114,9 +127,11 @@ export default function VersesColumn({
                 <span className={`mr-3 font-medium ${
                   selectedVerse === verse.number 
                     ? 'text-blue-700' 
+                    : verse.number === 'S'
+                    ? 'text-green-600'
                     : 'text-gray-500 group-hover:text-gray-700'
                 }`}>
-                  {verse.number}
+                  {verse.number === 'S' ? 'S' : verse.number}
                 </span>
                 <span className="flex-1">{verse.text}</span>
                 {verse.hasCommentary && (

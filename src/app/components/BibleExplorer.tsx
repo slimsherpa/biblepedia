@@ -9,12 +9,18 @@ import VersesColumn from './VersesColumn';
 import CommentaryColumn from './CommentaryColumn';
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
+import { getVerses } from '@/lib/firebase/verseManagement';
 
 interface BibleVersion {
   id: string;
   name: string;
   language: string;
   fallbackId?: string;
+}
+
+interface Book {
+  id: string;
+  name: string;
 }
 
 // Default versions to use if API fails
@@ -79,10 +85,11 @@ function VersionSelector({
 
 export default function BibleExplorer() {
   const [versions, setVersions] = useState<BibleVersion[]>(DEFAULT_VERSIONS);
-  const [selectedVersion, setSelectedVersion] = useState<string>('en-nrsv');
-  const [selectedBook, setSelectedBook] = useState<string | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
-  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<string>(DEFAULT_VERSION);
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<number | 'S' | null>(null);
+  const [selectedVerse, setSelectedVerse] = useState<number | 'S' | null>(null);
+  const [verses, setVerses] = useState<{ number: number | 'S'; content: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,15 +124,81 @@ export default function BibleExplorer() {
     loadVersions();
   }, []);
 
-  // Reset selections when changing higher-level selections
+  // Load verses when chapter changes
   useEffect(() => {
-    setSelectedChapter(null);
-    setSelectedVerse(null);
-  }, [selectedBook]);
+    let isCancelled = false;
 
+    async function loadVerses() {
+      console.log('Chapter changed to:', selectedChapter);
+      
+      // Clear verses immediately when chapter changes
+      setVerses([]);
+      
+      if (!selectedBookId || !selectedChapter) {
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Handle summary chapter
+        if (selectedChapter === 'S') {
+          console.log('Loading summary chapter');
+          if (!isCancelled) {
+            setVerses([{
+              number: 'S' as const,
+              content: 'Summary text summary text summary text summary text summary text'
+            }]);
+            setError(null);
+          }
+          return;
+        }
+
+        console.log('Loading regular chapter');
+        // Handle regular chapter
+        const data = await getVerses(selectedVersion, selectedBookId, selectedChapter);
+        if (!isCancelled) {
+          const newVerses = [
+            // Add summary verse at the start of each chapter
+            { number: 'S' as const, content: 'Summary text summary text summary text summary text' },
+            ...data.map(verse => ({
+              number: verse.number as number,
+              content: verse.content
+            }))
+          ];
+          console.log('Setting verses:', newVerses.length);
+          setVerses(newVerses);
+          setError(null);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          const errorMessage = getErrorMessage(err);
+          setError(errorMessage);
+          console.error('Error loading verses:', errorMessage);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadVerses();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedBookId, selectedChapter, selectedVersion]);
+
+  // Reset verse when chapter changes
   useEffect(() => {
     setSelectedVerse(null);
   }, [selectedChapter]);
+
+  // Reset chapter and verse when book changes
+  useEffect(() => {
+    setSelectedChapter(null);
+    setSelectedVerse(null);
+  }, [selectedBookId]);
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -143,15 +216,15 @@ export default function BibleExplorer() {
         <ErrorBoundary>
           <BooksColumn
             version={selectedVersion}
-            selectedBook={selectedBook}
-            onSelectBook={setSelectedBook}
+            selectedBook={selectedBookId}
+            onSelectBook={setSelectedBookId}
           />
         </ErrorBoundary>
         
         <ErrorBoundary>
           <ChaptersColumn
             version={selectedVersion}
-            book={selectedBook}
+            book={selectedBookId}
             selectedChapter={selectedChapter}
             onSelectChapter={setSelectedChapter}
           />
@@ -160,17 +233,20 @@ export default function BibleExplorer() {
         <ErrorBoundary>
           <VersesColumn
             version={selectedVersion}
-            book={selectedBook}
+            book={selectedBookId}
             chapter={selectedChapter}
             selectedVerse={selectedVerse}
             onSelectVerse={setSelectedVerse}
+            verses={verses}
+            loading={loading}
+            error={error}
           />
         </ErrorBoundary>
         
         <ErrorBoundary>
           <CommentaryColumn
             version={selectedVersion}
-            book={selectedBook}
+            book={selectedBookId}
             chapter={selectedChapter}
             verse={selectedVerse}
           />
