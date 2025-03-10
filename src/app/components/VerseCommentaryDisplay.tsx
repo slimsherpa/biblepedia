@@ -7,13 +7,31 @@ import { VerseCommentary } from '@/lib/types/commentary';
 import { canAddCommentary } from '@/lib/types/user';
 import DebateSection from './DebateSection';
 import EditHistory from './EditHistory';
+import EditCommentaryModal from './EditCommentaryModal';
 import { marked } from 'marked'; // For Markdown rendering
 
 interface VerseCommentaryDisplayProps {
-  verseId: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  verseText: string;
+  isSummary: boolean;
+  translations: Array<{
+    version: string;
+    text: string;
+    type: 'modern' | 'classical' | 'original';
+    displayName: string;
+  }>;
 }
 
-export default function VerseCommentaryDisplay({ verseId }: VerseCommentaryDisplayProps) {
+export default function VerseCommentaryDisplay({ 
+  book, 
+  chapter, 
+  verse, 
+  verseText,
+  isSummary,
+  translations
+}: VerseCommentaryDisplayProps) {
   const { userProfile } = useAuth();
   const [commentary, setCommentary] = useState<VerseCommentary | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -22,6 +40,9 @@ export default function VerseCommentaryDisplay({ verseId }: VerseCommentaryDispl
   const [showDebate, setShowDebate] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Generate the verse ID based on the props
+  const verseId = `${book.toUpperCase()}.${chapter}.${verse}${isSummary ? '.S' : ''}`;
 
   useEffect(() => {
     loadCommentary();
@@ -52,138 +73,125 @@ export default function VerseCommentaryDisplay({ verseId }: VerseCommentaryDispl
     }
   }
 
+  function handleStartEdit() {
+    if (!commentary) {
+      setEditContent('');
+    } else {
+      setEditContent(commentary.currentContent || '');
+    }
+    setIsEditing(true);
+  }
+
+  function handleCancelEdit() {
+    setIsEditing(false);
+    setEditContent('');
+    setEditSummary('');
+  }
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-          </div>
+      <div className="p-4">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      {/* Main Commentary Display */}
-      <div className="prose max-w-none">
-        {isEditing ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold">Editing Commentary</h3>
-              <div className="text-sm text-gray-500">
-                Supports Markdown formatting
-              </div>
+    <div className="space-y-4">
+      {/* Remove the duplicate Verse Text section */}
+      {isSummary && (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="text-sm font-medium text-gray-500 mb-2">
+            Summary
+          </h3>
+          <p className="text-gray-800">{verseText}</p>
+        </div>
+      )}
+
+      {/* Commentary Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-700">
+            {isSummary ? 'Summary Commentary' : 'Commentary'}
+          </h3>
+          {userProfile && canAddCommentary(userProfile) && (
+            <button
+              onClick={handleStartEdit}
+              className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        <div>
+          <div 
+            className="prose max-w-none"
+            dangerouslySetInnerHTML={{ 
+              __html: marked(commentary?.currentContent || 'No commentary yet.') 
+            }} 
+          />
+          {commentary?.contributors && commentary.contributors.length > 0 && (
+            <div className="mt-4 text-sm text-gray-500">
+              {commentary.contributors.length} contributor{commentary.contributors.length !== 1 ? 's' : ''}
             </div>
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full h-64 p-4 border rounded font-mono text-sm"
-              placeholder="Enter commentary using Markdown..."
-            />
-            <div className="bg-gray-50 p-4 rounded">
-              <h4 className="text-sm font-semibold mb-2">Preview:</h4>
-              <div 
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: marked(editContent) }}
-              />
-            </div>
-            <input
-              type="text"
-              value={editSummary}
-              onChange={(e) => setEditSummary(e.target.value)}
-              className="w-full p-2 border rounded"
-              placeholder="Edit summary (briefly describe your changes)"
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div 
-              className="mb-4"
-              dangerouslySetInnerHTML={{ 
-                __html: commentary?.currentContent ? 
-                  marked(commentary.currentContent) : 
-                  '<em>No commentary available yet.</em>'
-              }}
-            />
-            {userProfile && canAddCommentary(userProfile) && (
-              <button
-                onClick={() => {
-                  setEditContent(commentary?.currentContent || '');
-                  setIsEditing(true);
-                }}
-                className="text-blue-600 hover:text-blue-800"
-              >
-                Edit
-              </button>
-            )}
-          </>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mt-6 flex items-center justify-between border-t pt-4">
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="text-gray-600 hover:text-gray-800 flex items-center"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            View History
-          </button>
-          <button
-            onClick={() => setShowDebate(!showDebate)}
-            className="text-gray-600 hover:text-gray-800 flex items-center"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            Scholarly Debate
-          </button>
-        </div>
-        {commentary?.contributors?.length > 0 && (
-          <div className="text-sm text-gray-500">
-            {commentary.contributors.length} contributor{commentary.contributors.length !== 1 ? 's' : ''}
-          </div>
-        )}
+      {/* Edit History and Debate Buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="flex-1 py-2 px-4 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md"
+        >
+          History ({commentary?.edits?.length || 0})
+        </button>
+        <button
+          onClick={() => setShowDebate(!showDebate)}
+          className="flex-1 py-2 px-4 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md"
+        >
+          Debate ({commentary?.debate?.length || 0})
+        </button>
       </div>
 
       {/* Edit History */}
       {showHistory && commentary && (
         <EditHistory
-          edits={commentary.edits}
+          edits={commentary.edits || []}
           onClose={() => setShowHistory(false)}
         />
       )}
 
       {/* Debate Section */}
-      {showDebate && commentary && (
+      {showDebate && (
         <DebateSection
           verseId={verseId}
-          debate={commentary.debate}
           onClose={() => setShowDebate(false)}
+          debate={commentary?.debate || []}
           onUpdate={loadCommentary}
         />
       )}
+
+      {/* Edit Commentary Modal */}
+      <EditCommentaryModal
+        isOpen={isEditing}
+        onClose={handleCancelEdit}
+        content={editContent}
+        setContent={setEditContent}
+        onSave={handleSaveEdit}
+        book={book}
+        chapter={chapter}
+        verse={verse}
+        verseText={verseText}
+        translations={translations}
+        debate={commentary?.debate || []}
+        verseId={verseId}
+        onDebateUpdate={loadCommentary}
+      />
     </div>
   );
 } 

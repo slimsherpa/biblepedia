@@ -6,18 +6,21 @@ import { getErrorMessage } from '@/lib/utils/errorHandling';
 import { motion } from 'framer-motion';
 
 interface Chapter {
-  number: number;
+  number: number | 'S';
 }
 
 interface ChaptersColumnProps {
   version: string;
   book: string | null;
-  selectedChapter: number | null;
-  onSelectChapter: (chapter: number) => void;
+  selectedChapter: number | 'S' | null;
+  onSelectChapter: (chapter: number | 'S') => void;
 }
 
 // Default chapters to use if API fails
-const DEFAULT_CHAPTERS: Chapter[] = Array.from({ length: 10 }, (_, i) => ({ number: i + 1 }));
+const DEFAULT_CHAPTERS: Chapter[] = [
+  { number: 'S' },
+  ...Array.from({ length: 10 }, (_, i) => ({ number: i + 1 }))
+];
 
 export default function ChaptersColumn({ 
   version, 
@@ -40,7 +43,8 @@ export default function ChaptersColumn({
         setLoading(true);
         const data = await fetchChapters(version, book);
         if (Array.isArray(data) && data.length > 0) {
-          setChapters(data);
+          // Add summary chapter 'S' at the beginning
+          setChapters([{ number: 'S' }, ...data]);
           setError(null);
         } else {
           console.error('Invalid data format from Bible API:', data);
@@ -85,7 +89,7 @@ export default function ChaptersColumn({
               <motion.button
                 key={chapter.number}
                 className={`w-full py-2 px-3 text-center transition-all font-sans text-sm ${
-                  selectedChapter === chapter.number 
+                  selectedChapter === chapter.number
                     ? 'bg-blue-50 text-blue-700 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}

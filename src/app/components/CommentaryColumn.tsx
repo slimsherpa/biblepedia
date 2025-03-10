@@ -9,8 +9,8 @@ import VerseCommentaryDisplay from './VerseCommentaryDisplay';
 interface CommentaryColumnProps {
   version: string;
   book: string | null;
-  chapter: number | null;
-  verse: number | null;
+  chapter: number | 'S' | null;
+  verse: number | 'S' | null;
 }
 
 interface VerseData {
@@ -174,95 +174,56 @@ export default function CommentaryColumn({
   chapter, 
   verse 
 }: CommentaryColumnProps) {
-  const [verses, setVerses] = useState<VerseData[]>([]);
-  const [showAllTranslations, setShowAllTranslations] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verseData, setVerseData] = useState<VerseData[]>([]);
+  const [showAllTranslations, setShowAllTranslations] = useState(false);
 
   useEffect(() => {
-    async function loadVerse() {
-      if (!book || !chapter || !verse) {
-        setVerses([]);
+    async function loadVerseData() {
+      if (!book || !chapter || !verse || chapter === 'S' || verse === 'S') {
+        setVerseData([]);
         return;
       }
 
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Get available versions for this book
-        const availableVersions = getAvailableVersions(book);
-        console.log('Available versions for fetching:', availableVersions);
-        
-        // Always fetch current version first
-        const currentVersion = availableVersions.find(v => v.id === version) || availableVersions[0];
-        if (!currentVersion) {
-          throw new Error('Current version not found');
-        }
-        
-        const currentData = await fetchVerse(currentVersion.id, book, chapter, verse);
-        let verses: VerseData[] = [{
-          version: currentVersion.abbreviation,
-          displayName: currentVersion.displayName,
-          text: currentData.text,
-          language: currentVersion.language,
-          type: currentVersion.type
-        }];
-        
-        // If showing all translations, fetch the rest
-        if (showAllTranslations) {
-          const otherVersionPromises = availableVersions
-            .filter(v => v.id !== currentVersion.id)
-            .map(async (v) => {
-              try {
-                const data = await fetchVerse(v.id, book, chapter, verse);
-                return {
-                  version: v.abbreviation,
-                  displayName: v.displayName,
-                  text: data.text,
-                  language: v.language,
-                  type: v.type
-                };
-              } catch (err) {
-                console.error(`Error fetching version ${v.name}:`, err);
-                return null;
-              }
-            });
+        // Load verse data for each version
+        const versionsToLoad = showAllTranslations 
+          ? EXTENDED_VERSIONS.filter(v => v.isSupported)
+          : EXTENDED_VERSIONS.filter(v => v.id === version);
 
-          const results = await Promise.all(otherVersionPromises);
-          const successfulResults = results.filter((v): v is VerseData => v !== null);
-          verses = [...verses, ...successfulResults];
-        }
-        
-        // Sort verses by type: modern -> classical -> original
-        verses.sort((a, b) => {
-          const typeOrder = { modern: 0, classical: 1, original: 2 };
-          return typeOrder[a.type] - typeOrder[b.type];
+        const versePromises = versionsToLoad.map(async (v) => {
+          try {
+            const data = await fetchVerse(v.id, book, chapter, verse);
+            return {
+              version: v.id,
+              displayName: v.displayName,
+              text: data.text,
+              language: v.language,
+              type: v.type
+            };
+          } catch (err) {
+            console.error(`Error loading verse for version ${v.id}:`, err);
+            return null;
+          }
         });
-        
-        setVerses(verses);
+
+        const results = await Promise.all(versePromises);
+        const validResults = results.filter((r): r is VerseData => r !== null);
+        setVerseData(validResults);
         setError(null);
       } catch (err) {
         const errorMessage = getErrorMessage(err);
         setError(errorMessage);
-        console.error('Error loading verse:', errorMessage);
+        console.error('Error loading verse data:', errorMessage);
       } finally {
         setLoading(false);
       }
     }
 
-    loadVerse();
-  }, [version, book, chapter, verse, showAllTranslations]);
-
-  // Format the book name for display (capitalize first letter)
-  const formatBookName = (bookName: string | null) => {
-    if (!bookName) return '';
-    try {
-      return bookName.charAt(0).toUpperCase() + bookName.slice(1);
-    } catch (err) {
-      console.error('Error formatting book name:', err);
-      return bookName || '';
-    }
-  };
+    loadVerseData();
+  }, [book, chapter, verse, version, showAllTranslations]);
 
   return (
     <div className="flex-1 h-full flex flex-col bg-white">
@@ -275,61 +236,90 @@ export default function CommentaryColumn({
           <div className="flex justify-center items-center h-full text-gray-500 text-sm font-sans">
             Select a verse to view commentary
           </div>
+        ) : chapter === 'S' || verse === 'S' ? (
+          <div className="p-4">
+            <VerseCommentaryDisplay
+              book={book}
+              chapter={typeof chapter === 'number' ? chapter : 0}
+              verse={typeof verse === 'number' ? verse : 0}
+              verseText="Summary text"
+              isSummary={true}
+              translations={[]}
+            />
+          </div>
         ) : loading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-500 font-sans p-2">{error}</div>
+          <div className="p-4 text-red-500">{error}</div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="p-4">
             {/* Translations Section */}
-            <div className="px-3 py-2 space-y-2">
-              {verses.map((verseData, index) => (
-                <motion.div
-                  key={verseData.version}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className={`rounded-lg p-2 ${
-                    verseData.type === 'original' 
-                      ? 'bg-blue-50' 
-                      : verseData.type === 'classical'
-                      ? 'bg-gray-50'
-                      : 'bg-white border border-gray-200'
-                  }`}
-                >
-                  <div className="text-sm text-gray-500 font-sans mb-1 flex justify-between items-center">
-                    <span>{formatBookName(book)} {chapter}:{verse}</span>
-                    <div className="flex items-center gap-2">
-                      {verseData.type === 'original' && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                          {verseData.language === 'heb' ? 'Hebrew' : 'Greek'}
-                        </span>
-                      )}
-                      <span className="text-blue-600 font-medium">{verseData.displayName}</span>
+            {verseData.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  {/* Current Translation */}
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center">
+                      <h3 className="text-sm font-medium text-gray-900">
+                        {verseData[0].displayName}
+                      </h3>
+                      <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                        verseData[0].type === 'original' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : verseData[0].type === 'classical'
+                          ? 'bg-gray-200 text-gray-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {verseData[0].type}
+                      </span>
                     </div>
+                    <button
+                      onClick={() => setShowAllTranslations(!showAllTranslations)}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      {showAllTranslations ? 'Show Less' : 'See Additional Translations'}
+                    </button>
                   </div>
-                  <div className="text-sm font-sans">
-                    {verseData.text}
-                  </div>
-                </motion.div>
-              ))}
-              
-              {!showAllTranslations && (
-                <button 
-                  onClick={() => setShowAllTranslations(true)}
-                  className="w-full py-1.5 px-3 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm font-medium transition-colors"
-                >
-                  SEE ADDITIONAL TRANSLATIONS
-                </button>
-              )}
-            </div>
+                  <p className="text-gray-800 mt-2">{verseData[0].text}</p>
 
-            {/* Commentary Section */}
-            <div className="px-3 py-2">
-              <VerseCommentaryDisplay verseId={`${book?.toUpperCase()}.${chapter}.${verse}`} />
-            </div>
+                  {/* Additional Translations */}
+                  {showAllTranslations && verseData.length > 1 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                      {verseData.slice(1).map((data, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              {data.displayName}
+                            </h4>
+                            <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                              data.type === 'original' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : data.type === 'classical'
+                                ? 'bg-gray-200 text-gray-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {data.type}
+                            </span>
+                          </div>
+                          <p className="text-gray-800">{data.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <VerseCommentaryDisplay
+              book={book}
+              chapter={chapter as number}
+              verse={verse as number}
+              verseText={verseData[0]?.text || ''}
+              isSummary={false}
+              translations={verseData}
+            />
           </div>
         )}
       </div>

@@ -13,6 +13,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        <style>
+          {`
+            .material-icons {
+              font-size: 24px;
+              font-weight: bold;
+            }
+          `}
+        </style>
+      </head>
       <body>
         <AuthProvider>
           {children}

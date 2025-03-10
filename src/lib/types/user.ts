@@ -38,11 +38,13 @@ interface Product {
 
 export interface UserProfile {
   uid: string;
+  name: string;
   email: string;
+  role: 'user' | 'contributor' | 'admin';
+  createdAt: number;
+  lastLogin: number;
   displayName: string;
   photoURL?: string;
-  role: UserRole;
-  createdAt: number | FieldValue;
   updatedAt: number | FieldValue;
   bio: string;
   academicHistory: AcademicHistoryItem[];
