@@ -75,4 +75,4 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
   }
-} 
+}

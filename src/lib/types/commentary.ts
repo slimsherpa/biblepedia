@@ -16,6 +16,12 @@ export interface DebatePost {
   timestamp: number;
   likes: number;
   replies?: DebatePost[];
+  votes: {
+    up: string[];
+    down: string[];
+  };
+  references: string[];
+  parentPostId?: string;
 }
 
 export interface VerseCommentary {
