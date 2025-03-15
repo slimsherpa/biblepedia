@@ -3,19 +3,17 @@ import {
   collection, 
   doc, 
   getDoc, 
+  getDocs, 
+  query, 
+  where, 
   setDoc, 
   updateDoc,
-  arrayUnion,
   serverTimestamp,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs
+  arrayUnion,
+  FieldValue
 } from 'firebase/firestore';
-import { VerseCommentary, CommentaryEdit, DebatePost } from '../types/commentary';
-import { UserProfile } from '../types/user';
-import { canAddCommentary } from '../types/user';
+import { UserProfile, UserProfileMinimal, canAddCommentary } from '../types/user';
+import { CommentaryEdit, DebatePost, VerseCommentary } from '../types/commentary';
 
 const COMMENTARY_COLLECTION = 'commentaries';
 const EDITS_COLLECTION = 'commentary_edits';
@@ -56,11 +54,7 @@ export async function createCommentaryEdit(
     const edit: CommentaryEdit = {
       id: editId,
       content,
-      editor: {
-        uid: editor.uid,
-        displayName: editor.displayName,
-        role: editor.role
-      },
+      author: editor,
       timestamp: now,
       summary,
     };
@@ -86,12 +80,15 @@ export async function createCommentaryEdit(
     } else {
       // Create new commentary
       const newCommentary: VerseCommentary = {
+        id: verseId,
         verseId,
         currentContent: content,
         lastEditId: editId,
         edits: [edit],
         debate: [],
         contributors: [editor.uid],
+        createdAt: now,
+        updatedAt: now,
         lastUpdated: serverTimestamp()
       };
       await setDoc(commentaryRef, newCommentary);
@@ -122,9 +119,11 @@ export async function addDebatePost(
       author: {
         uid: author.uid,
         displayName: author.displayName,
-        role: author.role
+        role: author.role,
+        photoURL: author.photoURL
       },
       timestamp: Date.now(),
+      likes: 0,
       references,
       votes: { up: [], down: [] }
     };

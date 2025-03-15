@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user.uid,
             user.email || '',
             user.displayName || 'Anonymous User',
-            user.photoURL || undefined
+            user.photoURL || null
           );
         }
         

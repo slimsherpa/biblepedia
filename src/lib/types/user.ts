@@ -4,6 +4,13 @@ export type UserRole = 'superadmin' | 'admin' | 'scholar' | 'user';
 
 export const SUPER_ADMIN_EMAIL = 'rileyjadamson@gmail.com';
 
+export interface UserProfileMinimal {
+  uid: string;
+  displayName: string;
+  role: UserRole;
+  photoURL?: string;
+}
+
 interface SocialMediaLink {
   platform: string;
   url: string;
