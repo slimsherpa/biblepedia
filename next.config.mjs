@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',  // Always use static export
   images: {
-    unoptimized: true,  // Required for static export
     remotePatterns: [
       {
         protocol: "https",
@@ -24,7 +22,6 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  // Remove rewrites as they don't work with static export
 };
 
 export default nextConfig;

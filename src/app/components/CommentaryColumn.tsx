@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { fetchVerse, BIBLE_VERSIONS } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
-import { motion } from 'framer-motion';
 import VerseCommentaryDisplay from './VerseCommentaryDisplay';
 
 interface CommentaryColumnProps {

@@ -13,12 +13,6 @@ export interface DebatePost {
   references: string[]  // Array of reference URLs
   parentPostId?: string // Optional ID of the parent post for replies
   replies?: DebatePost[]
-  votes: {
-    up: string[]
-    down: string[]
-  }
-  references: string[]
-  parentPostId?: string
 }
 
 export interface DebateThread {

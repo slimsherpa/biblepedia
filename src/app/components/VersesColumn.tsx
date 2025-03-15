@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { fetchVerses } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
-import { motion } from 'framer-motion';
 import { getVerseCommentary } from '@/lib/firebase/commentaryManagement';
 
 interface VersesColumnProps {
@@ -113,16 +112,14 @@ export default function VersesColumn({
         ) : (
           <div className="divide-y divide-gray-100">
             {versesWithCommentary.map((verse) => (
-              <motion.button
+              <button
                 key={verse.number}
-                className={`w-full py-2 px-3 text-left transition-all font-sans text-sm flex items-start group ${
+                className={`w-full py-2 px-3 text-left transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm flex items-start group ${
                   selectedVerse === verse.number
                     ? 'bg-blue-50 text-blue-700 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
                 onClick={() => onSelectVerse(verse.number)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
               >
                 <span className={`mr-3 font-medium ${
                   selectedVerse === verse.number 
@@ -139,7 +136,7 @@ export default function VersesColumn({
                     ✓
                   </span>
                 )}
-              </motion.button>
+              </button>
             ))}
           </div>
         )}

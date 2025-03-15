@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Configure route handler to be dynamic
+export const dynamic = 'force-dynamic';
+
 const API_KEY = process.env.BIBLE_API_KEY; // Note: Not NEXT_PUBLIC_
 const BASE_URL = 'https://api.scripture.api.bible/v1';
 

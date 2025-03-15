@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { fetchBooks } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
-import { motion } from 'framer-motion';
 
 interface Book {
   id: string;
@@ -84,19 +83,17 @@ export default function BooksColumn({ version, selectedBook, onSelectBook }: Boo
       const name = typeof book.name === 'string' ? book.name : 'Unknown';
       
       return (
-        <motion.button
+        <button
           key={id}
-          className={`w-full py-2 px-3 text-left transition-all font-sans text-sm ${
+          className={`w-full py-2 px-3 text-left transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm ${
             selectedBook === id 
               ? 'bg-blue-50 text-blue-700 font-medium' 
               : 'hover:bg-gray-50 text-gray-700'
           }`}
           onClick={() => onSelectBook(id)}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
         >
           {name}
-        </motion.button>
+        </button>
       );
     } catch (err) {
       console.error('Error rendering book button:', err);
@@ -129,19 +126,17 @@ export default function BooksColumn({ version, selectedBook, onSelectBook }: Boo
         ) : (
           <div className="divide-y divide-gray-100">
             {filteredBooks.map((book) => (
-              <motion.button
+              <button
                 key={book.id}
-                className={`w-full py-2 px-3 text-left transition-all font-sans text-sm ${
+                className={`w-full py-2 px-3 text-left transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm ${
                   selectedBook === book.id 
                     ? 'bg-blue-50 text-blue-700 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
                 onClick={() => onSelectBook(book.id)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
               >
                 {book.name}
-              </motion.button>
+              </button>
             ))}
           </div>
         )}

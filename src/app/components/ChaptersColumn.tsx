@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { fetchChapters } from '@/lib/api/bibleApi';
 import { getErrorMessage } from '@/lib/utils/errorHandling';
-import { motion } from 'framer-motion';
 
 interface Chapter {
   number: number | 'S';
@@ -86,19 +85,17 @@ export default function ChaptersColumn({
         ) : (
           <div className="divide-y divide-gray-100">
             {chapters.map((chapter) => (
-              <motion.button
+              <button
                 key={chapter.number}
-                className={`w-full py-2 px-3 text-center transition-all font-sans text-sm ${
+                className={`w-full py-2 px-3 text-center transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm ${
                   selectedChapter === chapter.number
                     ? 'bg-blue-50 text-blue-700 font-medium' 
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
                 onClick={() => onSelectChapter(chapter.number)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
               >
                 {chapter.number}
-              </motion.button>
+              </button>
             ))}
           </div>
         )}
