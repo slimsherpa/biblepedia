@@ -1,5 +1,5 @@
-import { CommentaryEdit } from './commentaryTypes';
-import { DebatePost } from './debateTypes';
+import { CommentaryEdit } from './commentary';
+import { DebatePost } from './debate';
 
 export interface Summary {
   content: string;

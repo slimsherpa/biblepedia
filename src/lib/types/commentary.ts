@@ -1,5 +1,5 @@
 import { FieldValue } from 'firebase/firestore';
-import { UserProfileMinimal } from './user';
+import { UserProfile, UserProfileMinimal } from './user';
 
 export interface CommentaryEdit {
   id: string;
@@ -16,24 +16,22 @@ export interface DebatePost {
   author: UserProfileMinimal;
   timestamp: number;
   likes: number;
-  replies?: DebatePost[];
   votes: {
-    up: string[];
-    down: string[];
+    up: string[];  // Array of user IDs who upvoted
+    down: string[]; // Array of user IDs who downvoted
   };
-  references: string[];
-  parentPostId?: string;
+  references: string[];  // Array of reference URLs
+  parentPostId?: string; // Optional ID of the parent post for replies
+  replies?: DebatePost[];
 }
 
 export interface VerseCommentary {
   id: string;
   currentContent: string;
-  contributors: string[];
+  contributors: UserProfileMinimal[];
   edits: CommentaryEdit[];
   debate: DebatePost[];
   createdAt: number;
   updatedAt: number;
-  lastEditId?: string;
-  verseId: string;
-  lastUpdated: FieldValue;
+  lastEditId: string;
 } 

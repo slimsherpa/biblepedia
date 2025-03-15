@@ -9,6 +9,7 @@ export interface UserProfileMinimal {
   displayName: string;
   role: UserRole;
   photoURL?: string;
+  email: string;
 }
 
 interface SocialMediaLink {
@@ -37,21 +38,21 @@ interface Achievement {
   description: string;
 }
 
-export interface Product {
-  id: string;
-  name: string;
+interface Product {
+  title: string;
   description: string;
-  price: number;
-  imageUrl?: string;
+  url?: string;
 }
 
 export interface UserProfile {
   uid: string;
+  name: string;
   email: string;
-  displayName: string;
-  photoURL?: string;
   role: UserRole;
   createdAt: number | FieldValue;
+  lastLogin: number;
+  displayName: string;
+  photoURL?: string;
   updatedAt: number | FieldValue;
   bio: string;
   academicHistory: AcademicHistoryItem[];
@@ -64,7 +65,7 @@ export interface UserProfile {
 
 export function canManageAdmins(userProfile: UserProfile | null): boolean {
   if (!userProfile) return false;
-  return userProfile.role === 'superadmin';
+  return userProfile.email === SUPER_ADMIN_EMAIL;
 }
 
 export function canManageScholars(userProfile: UserProfile | null): boolean {

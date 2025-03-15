@@ -1,13 +1,13 @@
-const { initializeSummaries } = require('./initializeSummaries');
+import { initializeSummaries } from './initializeSummaries';
 
 console.log('Starting the summary initialization process...');
 
 initializeSummaries()
   .then(() => {
-    console.log('Successfully initialized all summaries!');
+    console.log('Summary initialization completed successfully!');
     process.exit(0);
   })
-  .catch((error: unknown) => {
-    console.error('Failed to initialize summaries:', error);
+  .catch((error) => {
+    console.error('Error during summary initialization:', error);
     process.exit(1);
   }); 

@@ -1,4 +1,4 @@
-const { createOrUpdateBookSummary, createOrUpdateChapterSummary } = require('../lib/firebase/summaryManagement');
+import { createOrUpdateBookSummary, createOrUpdateChapterSummary } from '../lib/firebase/summaryManagement';
 
 // Bible book data with chapter counts
 const bibleBooks = [
@@ -70,7 +70,7 @@ const bibleBooks = [
   { id: 'REV', name: 'Revelation', chapters: 22 }
 ];
 
-async function initializeSummaries() {
+export async function initializeSummaries() {
   console.log('Starting summary initialization...');
   
   for (const book of bibleBooks) {
@@ -95,13 +95,11 @@ async function initializeSummaries() {
 }
 
 // Run the initialization if this script is executed directly
-if (require.main === module) {
+if (typeof require !== 'undefined' && require.main === module) {
   initializeSummaries()
     .then(() => process.exit(0))
     .catch((error) => {
       console.error('Error initializing summaries:', error);
       process.exit(1);
     });
-}
-
-module.exports = { initializeSummaries }; 
+} 

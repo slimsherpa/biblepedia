@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { DebatePost } from '@/lib/types/commentary';
+import { DebatePost } from '@/lib/types/debate';
 import { addDebatePost, voteOnDebatePost } from '@/lib/firebase/commentaryManagement';
 import { canAddCommentary } from '@/lib/types/user';
 import { marked } from 'marked';
@@ -39,7 +39,6 @@ export default function DebateSection({ verseId, debate, onClose, onUpdate }: De
     const success = await addDebatePost(
       verseId,
       content,
-      references,
       userProfile,
       replyTo || undefined
     );
@@ -87,19 +86,6 @@ export default function DebateSection({ verseId, debate, onClose, onUpdate }: De
     return acc;
   }, [] as (DebatePost & { replies: DebatePost[] })[]);
 
-  const getRoleBadgeClasses = (role: string) => {
-    switch (role) {
-      case 'superadmin':
-        return 'bg-purple-100 text-purple-800';
-      case 'admin':
-        return 'bg-blue-100 text-blue-800';
-      case 'scholar':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -131,7 +117,12 @@ export default function DebateSection({ verseId, debate, onClose, onUpdate }: De
                         'MMM d, yyyy h:mm a'
                       )}
                     </span>
-                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getRoleBadgeClasses(post.author.role)}`}>
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      post.author.role === 'superadmin' ? 'bg-purple-100 text-purple-800' :
+                      post.author.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                      post.author.role === 'scholar' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                       {post.author.role}
                     </span>
                   </div>
@@ -209,7 +200,12 @@ export default function DebateSection({ verseId, debate, onClose, onUpdate }: De
                                 'MMM d, yyyy h:mm a'
                               )}
                             </span>
-                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${getRoleBadgeClasses(reply.author.role)}`}>
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                              reply.author.role === 'superadmin' ? 'bg-purple-100 text-purple-800' :
+                              reply.author.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                              reply.author.role === 'scholar' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
                               {reply.author.role}
                             </span>
                           </div>
