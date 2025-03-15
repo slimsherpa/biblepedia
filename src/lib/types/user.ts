@@ -30,21 +30,21 @@ interface Achievement {
   description: string;
 }
 
-interface Product {
-  title: string;
+export interface Product {
+  id: string;
+  name: string;
   description: string;
-  url?: string;
+  price: number;
+  imageUrl?: string;
 }
 
 export interface UserProfile {
   uid: string;
-  name: string;
   email: string;
-  role: 'user' | 'contributor' | 'admin';
-  createdAt: number;
-  lastLogin: number;
   displayName: string;
   photoURL?: string;
+  role: UserRole;
+  createdAt: number | FieldValue;
   updatedAt: number | FieldValue;
   bio: string;
   academicHistory: AcademicHistoryItem[];
@@ -57,7 +57,7 @@ export interface UserProfile {
 
 export function canManageAdmins(userProfile: UserProfile | null): boolean {
   if (!userProfile) return false;
-  return userProfile.email === SUPER_ADMIN_EMAIL;
+  return userProfile.role === 'superadmin';
 }
 
 export function canManageScholars(userProfile: UserProfile | null): boolean {
