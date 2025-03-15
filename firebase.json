@@ -1,12 +1,13 @@
 {
   "hosting": {
-    "site": "biblepedia-app",
-    "public": ".next",
+    "target": "biblepedia-app",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "cleanUrls": true,
     "rewrites": [
       {
         "source": "**",
