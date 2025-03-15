@@ -45,10 +45,12 @@ export async function createUserProfile(
     const newProfile: UserProfile = {
       uid,
       email,
+      name: displayName || email.split('@')[0],
       displayName: displayName || email.split('@')[0],
       photoURL: photoURL || undefined,
       role: email === SUPER_ADMIN_EMAIL ? 'superadmin' : 'user',
       createdAt: serverTimestamp() as FieldValue,
+      lastLogin: Date.now(),
       updatedAt: serverTimestamp() as FieldValue,
       academicHistory: [],
       workHistory: [],

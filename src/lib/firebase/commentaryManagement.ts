@@ -11,11 +11,13 @@ import {
   where,
   orderBy,
   limit,
-  getDocs
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { VerseCommentary, CommentaryEdit, DebatePost } from '../types/commentary';
 import { UserProfile } from '../types/user';
 import { canAddCommentary } from '../types/user';
+import { v4 as uuidv4 } from 'uuid';
 
 const COMMENTARY_COLLECTION = 'commentaries';
 const EDITS_COLLECTION = 'commentary_edits';
@@ -53,51 +55,46 @@ export async function createCommentaryEdit(
     const editRef = doc(db, EDITS_COLLECTION, editId);
     
     const now = Date.now();
-    const edit: CommentaryEdit = {
-      id: editId,
-      content,
-      editor: {
-        uid: editor.uid,
-        displayName: editor.displayName,
-        role: editor.role
-      },
-      timestamp: now,
-      summary,
-    };
-
-    // Get current commentary
     const commentaryRef = doc(db, COMMENTARY_COLLECTION, verseId);
     const commentaryDoc = await getDoc(commentaryRef);
+    const commentary = commentaryDoc.data() as VerseCommentary;
 
-    if (commentaryDoc.exists()) {
-      const commentary = commentaryDoc.data() as VerseCommentary;
-      if (commentary.lastEditId) {
-        edit.parentEditId = commentary.lastEditId;
-      }
-      
-      // Update existing commentary
-      await updateDoc(commentaryRef, {
-        currentContent: content,
-        lastEditId: editId,
-        edits: arrayUnion(edit),
-        contributors: arrayUnion(editor.uid),
-        lastUpdated: serverTimestamp()
-      });
-    } else {
-      // Create new commentary
-      const newCommentary: VerseCommentary = {
-        verseId,
-        currentContent: content,
-        lastEditId: editId,
-        edits: [edit],
-        debate: [],
-        contributors: [editor.uid],
-        lastUpdated: serverTimestamp()
-      };
-      await setDoc(commentaryRef, newCommentary);
-    }
+    const editData: CommentaryEdit = {
+      id: editId,
+      content,
+      author: {
+        uid: editor.uid,
+        displayName: editor.displayName,
+        role: editor.role,
+        photoURL: editor.photoURL,
+        email: editor.email || ''
+      },
+      timestamp: now,
+      summary: summary || '',
+      parentEditId: commentary?.lastEditId
+    };
 
-    await setDoc(editRef, edit);
+    // Update the commentary document
+    const batch = writeBatch(db);
+
+    // Add the new edit
+    batch.update(commentaryRef, {
+      currentContent: content,
+      edits: arrayUnion(editData),
+      updatedAt: now,
+      lastEditId: editId,
+      contributors: arrayUnion({
+        uid: editor.uid,
+        displayName: editor.displayName,
+        role: editor.role,
+        photoURL: editor.photoURL,
+        email: editor.email || ''
+      })
+    });
+
+    await batch.commit();
+
+    await setDoc(editRef, editData);
     return true;
   } catch (error) {
     console.error('Error creating commentary edit:', error);
@@ -108,25 +105,33 @@ export async function createCommentaryEdit(
 export async function addDebatePost(
   verseId: string,
   content: string,
-  references: string[],
   author: UserProfile,
   parentPostId?: string
 ): Promise<boolean> {
   if (!canAddCommentary(author)) return false;
 
   try {
-    const postId = `${verseId}_debate_${Date.now()}`;
+    const postId = uuidv4();
+    const now = Date.now();
+
     const post: DebatePost = {
       id: postId,
       content,
       author: {
         uid: author.uid,
         displayName: author.displayName,
-        role: author.role
+        role: author.role,
+        photoURL: author.photoURL,
+        email: author.email || ''
       },
-      timestamp: Date.now(),
-      references,
-      votes: { up: [], down: [] }
+      timestamp: now,
+      likes: 0,
+      votes: {
+        up: [],
+        down: []
+      },
+      references: [],
+      parentPostId
     };
 
     // Only add parentPostId if it exists

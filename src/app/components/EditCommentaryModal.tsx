@@ -72,7 +72,6 @@ function DebateThread({ post, depth = 0, onUpdate }: {
     const success = await addDebatePost(
       post.verseId,
       replyContent,
-      [],
       userProfile,
       post.id
     );
@@ -328,9 +327,9 @@ export default function EditCommentaryModal({
     
     const success = await addDebatePost(
       verseId,
-      newDebatePost,
-      [], // empty references array
-      userProfile
+      content,
+      userProfile,
+      newDebatePost
     );
 
     if (success) {
