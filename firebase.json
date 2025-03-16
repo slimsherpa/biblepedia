@@ -1,5 +1,5 @@
 {
-  "hosting": {
+  "hosting": [{
     "source": ".",
     "ignore": [
       "firebase.json",
@@ -9,10 +9,9 @@
       "**/src/functions/**"
     ],
     "frameworksBackend": {
-      "region": "us-central1",
-      "memory": "1GB"
+      "region": "us-central1"
     }
-  },
+  }],
   "functions": [
     {
       "source": ".",
