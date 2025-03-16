@@ -13,18 +13,17 @@
       "memory": "1GB"
     }
   },
-  "functions": {
-    "source": ".",
-    "runtime": "nodejs20",
-    "codebase": "default",
-    "memory": "1GB",
-    "minInstances": 0,
-    "maxInstances": 2,
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log"
-    ]
-  }
+  "functions": [
+    {
+      "source": ".",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ]
 } 
