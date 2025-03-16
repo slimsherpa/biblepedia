@@ -1,21 +1,14 @@
 {
   "hosting": {
-    "target": "biblepedia-app",
-    "public": ".next",
+    "public": "build-output",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
-    "rewrites": [
-      {
-        "source": "**",
-        "run": {
-          "serviceId": "nextjs",
-          "region": "us-central1"
-        }
-      }
-    ]
+    "frameworksBackend": {
+      "region": "us-central1"
+    }
   },
   "functions": {
     "source": ".",
