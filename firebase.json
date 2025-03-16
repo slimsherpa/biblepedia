@@ -4,7 +4,9 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/src/functions/**"
     ],
     "frameworksBackend": {
       "region": "us-central1"
@@ -12,6 +14,13 @@
   },
   "functions": {
     "source": ".",
-    "runtime": "nodejs20"
+    "runtime": "nodejs20",
+    "codebase": "default",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
   }
 } 
