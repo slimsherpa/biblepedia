@@ -8,15 +8,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'us-central1-biblepediaio.cloudfunctions.net',
-      },
-      {
-        protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.gstatic.com',
       },
     ],
     dangerouslyAllowSVG: true,
@@ -28,10 +20,9 @@ const nextConfig = {
   },
   output: 'standalone',
   experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb'
-    },
-    optimizePackageImports: ['lucide-react'],
+    serverActions: true,
+    optimizePackageImports: ['@mui/icons-material', '@mui/material'],
+    typedRoutes: true,
   },
   poweredByHeader: false,
   generateEtags: true,
@@ -39,15 +30,17 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   distDir: '.next',
   cleanDistDir: true,
-  // Disable tracing to avoid permission issues
-  tracing: {
-    ignoreRootSpans: true,
-  },
   webpack: (config, { dev, isServer }) => {
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
       'bufferutil': 'commonjs bufferutil',
     });
+
+    // Add resolve aliases to webpack config
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': './src',
+    };
 
     // Optimize bundle size
     if (!dev && !isServer) {
@@ -90,8 +83,16 @@ const nextConfig = {
       };
     }
 
+    if (!isServer) {
+      config.resolve.fallback = {
+        fs: false,
+        module: false,
+      };
+    }
+
     return config;
   },
+  swcMinify: true,
 };
 
 export default nextConfig;

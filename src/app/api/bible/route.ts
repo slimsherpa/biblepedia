@@ -9,13 +9,19 @@ const BASE_URL = 'https://api.scripture.api.bible/v1';
 export async function GET(request: NextRequest) {
   try {
     // Get the endpoint from the URL
-    const endpoint = request.nextUrl.searchParams.get('endpoint');
+    const endpoint = request.nextUrl.searchParams.get('endpoint') || '/bibles';
     
     console.log('Bible API Debug:', {
       endpoint,
       apiKeyExists: !!API_KEY,
+      apiKeyLength: API_KEY?.length,
       url: `${BASE_URL}${endpoint}`,
-      env: process.env.NODE_ENV
+      env: process.env.NODE_ENV,
+      headers: {
+        'api-key': API_KEY ? `${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}` : 'missing',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     });
     
     if (!endpoint) {
