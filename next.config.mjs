@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  distDir: 'build-output',
   images: {
     remotePatterns: [
       {
@@ -22,9 +21,7 @@ const nextConfig = {
     ],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-  },
-  experimental: {
-    disableOptimizedLoading: true,
+    unoptimized: true,
   },
   typescript: {
     ignoreBuildErrors: true,

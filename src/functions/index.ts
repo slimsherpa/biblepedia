@@ -19,4 +19,6 @@ export const nextjs = onRequest(async (req, res) => {
     console.error('Error processing request:', err);
     res.status(500).send('Internal Server Error');
   }
-}); 
+});
+
+export { bibleApi } from './bibleApi'; 

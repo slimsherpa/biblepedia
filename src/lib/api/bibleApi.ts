@@ -8,9 +8,9 @@
 const apiCache = new Map<string, any>();
 
 // API configuration
-const BASE_URL = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL ? 
-  `${process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL}/bibleApi` : 
-  '/api/bible';
+const BASE_URL = process.env.NODE_ENV === 'development' ? 
+  '/api/bible' : 
+  `${process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL}/bibleApi`;
 
 // Define supported Bible versions
 export const BIBLE_VERSIONS: BibleVersion[] = [
