@@ -1,17 +1,23 @@
 {
-  "hosting": [{
-    "source": ".",
+  "hosting": {
+    "target": "biblepediaio",
+    "public": ".next",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**",
-      "**/.next/**",
-      "**/src/functions/**"
+      "**/node_modules/**"
+    ],
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ],
     "frameworksBackend": {
       "region": "us-central1"
     }
-  }],
+  },
   "functions": [
     {
       "source": ".",
@@ -22,6 +28,9 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log"
+      ],
+      "predeploy": [
+        "npm ci"
       ]
     }
   ]

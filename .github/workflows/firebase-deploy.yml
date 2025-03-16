@@ -5,17 +5,32 @@ on:
     branches:
       - main
 
+env:
+  FIREBASE_CLI_EXPERIMENTS: webframeworks
+  NODE_ENV: production
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Cache Next.js build
+        uses: actions/cache@v3
+        with:
+          path: |
+            .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
       - name: Install dependencies
         run: |
@@ -25,6 +40,12 @@ jobs:
       - name: Create service account key file
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_BIBLEPEDIAIO }}' > ${{ github.workspace }}/service-account.json
+
+      - name: Verify Firebase project
+        run: |
+          firebase use biblepediaio --token ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BIBLEPEDIAIO }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
 
       - name: Build project
         env:
@@ -36,17 +57,37 @@ jobs:
           FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL: https://us-central1-biblepediaio.cloudfunctions.net
-          FIREBASE_CLI_EXPERIMENTS: webframeworks
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-        run: npm run build
+        run: |
+          npm run build
+          if [ ! -d ".next" ]; then
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi
+
+      - name: Configure Firebase Hosting
+        run: |
+          firebase target:clear hosting biblepediaio --project biblepediaio
+          firebase target:apply hosting biblepediaio biblepediaio --project biblepediaio
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
 
       - name: Deploy to Firebase
         run: |
-          firebase deploy --project biblepediaio --debug
+          firebase deploy --only hosting,functions --project biblepediaio --debug
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-          FIREBASE_CLI_EXPERIMENTS: webframeworks
 
       - name: Cleanup service account key
         if: always()
         run: rm -f ${{ github.workspace }}/service-account.json
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs
+          path: |
+            .next/
+            firebase-debug.log
+            .firebase/
