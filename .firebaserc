@@ -5,7 +5,7 @@
   "targets": {
     "biblepediaio": {
       "hosting": {
-        "biblepedia-app": [
+        "biblepediaio": [
           "biblepediaio"
         ]
       }
