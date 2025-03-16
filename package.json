@@ -5,11 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "clean": "powershell -NoProfile -ExecutionPolicy Bypass -File cleanup.ps1",
-    "build": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& {./cleanup.ps1; if ($?) { next build }}\"",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& {./cleanup.ps1; if ($?) { next build; if ($?) { firebase deploy }}}\"",
-    "deploy:hosting": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& {./cleanup.ps1; if ($?) { next build; if ($?) { firebase deploy --only hosting }}}\"",
+    "deploy": "next build && firebase deploy",
+    "deploy:hosting": "next build && firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions"
   },
   "dependencies": {

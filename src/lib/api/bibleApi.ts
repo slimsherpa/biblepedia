@@ -176,16 +176,10 @@ async function fetchWithCache(endpoint: string) {
   const cacheKey = endpoint;
   
   if (apiCache.has(cacheKey)) {
-    const cachedData = apiCache.get(cacheKey);
-    console.debug('Retrieved from cache:', {
-      endpoint,
-      data: cachedData
-    });
-    return cachedData;
+    return apiCache.get(cacheKey);
   }
   
   try {
-    console.log('Fetching from endpoint:', endpoint);
     const response = await fetch(`${BASE_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
       headers: {
         'Accept': 'application/json'
@@ -193,51 +187,40 @@ async function fetchWithCache(endpoint: string) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
+      // Only log 404s at debug level since they're expected for verse lookups
+      if (response.status === 404) {
+        console.debug(`Resource not found: ${endpoint}`);
+        return null;
+      }
+      
+      // Log other errors at error level
       console.error('API Error:', {
         status: response.status,
         statusText: response.statusText,
-        endpoint,
-        error: errorData
+        endpoint
       });
       
-      // Special handling for common errors
-      if (response.status === 403) {
-        throw new Error('Bible version not accessible. Please check API key configuration or try a different version.');
-      }
-      
       throw new Error(
-        errorData.details || errorData.error || `API request failed with status ${response.status}`
+        `API request failed with status ${response.status}`
       );
     }
     
     const data = await response.json();
     
-    // Validate the response data
     if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-      console.error('Empty API response:', {
-        endpoint,
-        responseData: data
-      });
-      throw new Error('Empty response from API');
+      return null;
     }
 
-    // Log the response data to see its structure
-    console.debug('API Response:', {
-      endpoint,
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      data: data
-    });
-    
     apiCache.set(cacheKey, data);
     return data;
   } catch (error) {
-    console.error('Error fetching from Bible API:', {
-      endpoint,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      fullError: error
-    });
+    // Only log non-404 errors
+    if (!(error instanceof Error) || !error.message.includes('404')) {
+      console.error('Error fetching from Bible API:', {
+        endpoint,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
     throw error;
   }
 }

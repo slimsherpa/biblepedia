@@ -39,7 +39,10 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   distDir: '.next',
   cleanDistDir: true,
-  telemetry: false,
+  // Disable tracing to avoid permission issues
+  tracing: {
+    ignoreRootSpans: true,
+  },
   webpack: (config, { dev, isServer }) => {
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
