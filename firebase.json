@@ -9,13 +9,17 @@
       "**/src/functions/**"
     ],
     "frameworksBackend": {
-      "region": "us-central1"
+      "region": "us-central1",
+      "memory": "1GB"
     }
   },
   "functions": {
     "source": ".",
     "runtime": "nodejs20",
     "codebase": "default",
+    "memory": "1GB",
+    "minInstances": 0,
+    "maxInstances": 2,
     "ignore": [
       "node_modules",
       ".git",
