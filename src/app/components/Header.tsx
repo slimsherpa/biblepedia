@@ -1,8 +1,9 @@
- 'use client';
+'use client';
 
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface HeaderProps {
   version?: string;
@@ -81,7 +82,13 @@ export default function Header({
                   className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-md hover:bg-white/20 transition-colors"
                 >
                   {user.photoURL ? (
-                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                    <Image 
+                      src={user.photoURL} 
+                      alt="" 
+                      width={24} 
+                      height={24} 
+                      className="rounded-full"
+                    />
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 text-sm font-medium">
                       {user.email?.[0].toUpperCase()}

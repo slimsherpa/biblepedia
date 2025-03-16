@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { getUserProfile, updateUserProfile } from '@/lib/firebase/userManagement';
 import { UserProfile } from '@/lib/types/user';
 import Link from 'next/link';
+import Image from 'next/image';
 import ProfileEditor from '@/app/components/ProfileEditor';
 
 const ROLE_BADGES = {
@@ -106,10 +107,12 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
         <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
           <div className="relative h-32 bg-gradient-to-r from-blue-800 to-indigo-900">
             {profile.photoURL && (
-              <img
+              <Image
                 src={profile.photoURL}
                 alt={profile.displayName}
-                className="absolute bottom-0 left-6 transform translate-y-1/2 w-24 h-24 rounded-full border-4 border-white shadow-lg"
+                width={96}
+                height={96}
+                className="absolute bottom-0 left-6 transform translate-y-1/2 rounded-full border-4 border-white shadow-lg"
               />
             )}
           </div>

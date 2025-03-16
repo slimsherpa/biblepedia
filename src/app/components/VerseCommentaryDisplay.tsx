@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getVerseCommentary, createCommentaryEdit } from '@/lib/firebase/commentaryManagement';
 import { VerseCommentary } from '@/lib/types/commentary';
@@ -44,16 +44,16 @@ export default function VerseCommentaryDisplay({
   // Generate the verse ID based on the props
   const verseId = `${book.toUpperCase()}.${chapter}.${verse}${isSummary ? '.S' : ''}`;
 
-  useEffect(() => {
-    loadCommentary();
-  }, [verseId]);
-
-  async function loadCommentary() {
+  const loadCommentary = useCallback(async () => {
     setLoading(true);
     const data = await getVerseCommentary(verseId);
     setCommentary(data);
     setLoading(false);
-  }
+  }, [verseId]);
+
+  useEffect(() => {
+    loadCommentary();
+  }, [loadCommentary]);
 
   async function handleSaveEdit() {
     if (!userProfile || !canAddCommentary(userProfile)) return;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { UserProfile, UserRole, canManageAdmins } from '@/lib/types/user';
 import { getUsersByRole, updateUserRole } from '@/lib/firebase/userManagement';
@@ -112,9 +113,11 @@ export default function AdminPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             {admin.photoURL && (
-                              <img 
+                              <Image 
                                 src={admin.photoURL} 
-                                alt="" 
+                                alt={`${admin.displayName}'s profile`}
+                                width={32}
+                                height={32}
                                 className="h-8 w-8 rounded-full mr-3"
                               />
                             )}
@@ -166,9 +169,11 @@ export default function AdminPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {scholar.photoURL && (
-                            <img 
+                            <Image 
                               src={scholar.photoURL} 
-                              alt="" 
+                              alt={`${scholar.displayName}'s profile`}
+                              width={32}
+                              height={32}
                               className="h-8 w-8 rounded-full mr-3"
                             />
                           )}

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/contexts/AuthContext'
 import { format } from 'date-fns'
 import { BIBLE_VERSIONS } from '@/lib/api/bibleApi'
 import { fetchVerse } from '@/lib/api/bibleApi'
+import Image from 'next/image'
 
 interface TranslationType {
   version: string;
@@ -89,10 +90,12 @@ function DebateThread({ post, depth = 0, onUpdate }: {
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center">
             {post.author?.photoURL ? (
-              <img 
+              <Image 
                 src={post.author.photoURL} 
                 alt={post.author.displayName || 'User'}
-                className="w-6 h-6 rounded-full mr-2"
+                width={24}
+                height={24}
+                className="rounded-full mr-2"
               />
             ) : (
               <div className="w-6 h-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center">
