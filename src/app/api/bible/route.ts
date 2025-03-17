@@ -5,32 +5,13 @@ export const dynamic = 'force-dynamic';
 
 const API_KEY = process.env.BIBLE_API_KEY;
 const BASE_URL = 'https://api.scripture.api.bible/v1';
+const KJV_BIBLE_ID = 'de4e12af7f28f599-01';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the endpoint from the URL
-    const endpoint = request.nextUrl.searchParams.get('endpoint') || '/bibles';
+    // Get the path from the URL (e.g., /books, /chapters/GEN.1, etc.)
+    const path = request.nextUrl.searchParams.get('path') || '';
     
-    console.log('Bible API Debug:', {
-      endpoint,
-      apiKeyExists: !!API_KEY,
-      apiKeyLength: API_KEY?.length,
-      url: `${BASE_URL}${endpoint}`,
-      env: process.env.NODE_ENV,
-      headers: {
-        'api-key': API_KEY ? `${API_KEY.substring(0, 4)}...${API_KEY.substring(API_KEY.length - 4)}` : 'missing',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!endpoint) {
-      return NextResponse.json(
-        { error: 'Missing endpoint parameter' },
-        { status: 400 }
-      );
-    }
-
     if (!API_KEY) {
       console.error('API key missing in environment');
       return NextResponse.json(
@@ -39,15 +20,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Make the request to the Bible API
+    // Construct the full endpoint URL
+    const endpoint = path ? `/bibles/${KJV_BIBLE_ID}/${path}` : `/bibles/${KJV_BIBLE_ID}`;
     const url = `${BASE_URL}${endpoint}`;
+    
     console.log('Making request to:', url);
     
     const response = await fetch(url, {
       headers: {
         'api-key': API_KEY,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        'Accept': 'application/json'
       }
     });
 
@@ -58,26 +40,19 @@ export async function GET(request: NextRequest) {
         url: url
       });
       
-      // Try to get error details
       let errorDetails = '';
       try {
         const errorData = await response.json();
+        console.error('Error response body:', errorData);
         errorDetails = JSON.stringify(errorData);
       } catch (e) {
-        errorDetails = await response.text();
-      }
-      console.error('Error details:', errorDetails);
-
-      // Special handling for common errors
-      if (response.status === 403) {
-        return NextResponse.json(
-          { error: 'Invalid or missing API key', details: errorDetails },
-          { status: 403 }
-        );
+        const textResponse = await response.text();
+        console.error('Error response text:', textResponse);
+        errorDetails = textResponse;
       }
 
       return NextResponse.json(
-        { error: `API request failed with status ${response.status}`, details: errorDetails },
+        { error: `Bible API request failed: ${response.statusText}`, details: errorDetails },
         { status: response.status }
       );
     }

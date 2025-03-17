@@ -172,15 +172,15 @@ const CHAPTER_COUNTS: Record<string, number> = {
 /**
  * Fetches data from the Bible API with caching
  */
-async function fetchWithCache(endpoint: string) {
-  const cacheKey = endpoint;
+async function fetchWithCache(path: string) {
+  const cacheKey = path;
   
   if (apiCache.has(cacheKey)) {
     return apiCache.get(cacheKey);
   }
   
   try {
-    const response = await fetch(`${BASE_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
+    const response = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`, {
       headers: {
         'Accept': 'application/json'
       }
@@ -189,7 +189,7 @@ async function fetchWithCache(endpoint: string) {
     if (!response.ok) {
       // Only log 404s at debug level since they're expected for verse lookups
       if (response.status === 404) {
-        console.debug(`Resource not found: ${endpoint}`);
+        console.debug(`Resource not found: ${path}`);
         return null;
       }
       
@@ -197,7 +197,7 @@ async function fetchWithCache(endpoint: string) {
       console.error('API Error:', {
         status: response.status,
         statusText: response.statusText,
-        endpoint
+        path
       });
       
       throw new Error(
@@ -217,7 +217,7 @@ async function fetchWithCache(endpoint: string) {
     // Only log non-404 errors
     if (!(error instanceof Error) || !error.message.includes('404')) {
       console.error('Error fetching from Bible API:', {
-        endpoint,
+        path,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
@@ -351,20 +351,18 @@ export async function fetchBibleVersions(): Promise<BibleVersion[]> {
  */
 export async function fetchBooks(version: string): Promise<Book[]> {
   try {
-    const actualVersionId = getActualVersionId(version);
-    const booksEndpoint = `/bibles/${actualVersionId}/books`;
-    const booksData = await fetchWithCache(booksEndpoint);
+    const booksData = await fetchWithCache('books');
     
     if (!booksData?.data) {
       console.warn('Could not fetch books from API, using default list');
       return BIBLE_BOOKS;
     }
     
-    // Map the API response to our format, keeping the original API IDs
+    // Map the API response to our format
     return booksData.data.map((book: any) => ({
-      id: book.id, // Keep the original API book ID
+      id: book.id.toLowerCase(), // Convert to lowercase to match our existing code
       name: book.name,
-      abbreviation: book.abbreviation || formatBookName(book.name)
+      abbreviation: book.abbreviation
     }));
   } catch (error) {
     console.error('Error fetching books:', error);
@@ -377,28 +375,11 @@ export async function fetchBooks(version: string): Promise<Book[]> {
  */
 export async function fetchChapters(version: string, book: string): Promise<Chapter[]> {
   try {
-    const actualVersionId = getActualVersionId(version);
-    const versionName = BIBLE_VERSIONS.find(v => v.id === actualVersionId)?.name || 'Unknown Version';
-    
-    // First get the books list to get the correct book ID
-    const books = await fetchBooks(version);
-    const bookData = books.find(b => 
-      b.id.toLowerCase() === book.toLowerCase() ||
-      b.name.toLowerCase() === book.toLowerCase() ||
-      (b.abbreviation && b.abbreviation.toLowerCase() === book.toLowerCase())
-    );
-    
-    if (!bookData) {
-      console.error(`Book not found: ${book} in ${versionName}`);
-      throw new Error(`Book "${book}" not found in ${versionName}`);
-    }
-    
-    // Use the actual book ID from the API response
-    const chaptersEndpoint = `/bibles/${actualVersionId}/books/${bookData.id}/chapters`;
-    const chaptersData = await fetchWithCache(chaptersEndpoint);
+    const formattedBook = formatBookName(book);
+    const chaptersData = await fetchWithCache(`books/${formattedBook}/chapters`);
     
     if (!chaptersData?.data) {
-      throw new Error(`Could not fetch chapter data for ${bookData.name} in ${versionName}`);
+      throw new Error(`Could not fetch chapter data for ${book}`);
     }
     
     return chaptersData.data
@@ -410,7 +391,7 @@ export async function fetchChapters(version: string, book: string): Promise<Chap
       .sort((a: Chapter, b: Chapter) => a.number - b.number);
   } catch (error) {
     console.error('Error fetching chapters:', error);
-    throw error; // Let the error propagate to handle it in the UI
+    throw error;
   }
 }
 
@@ -551,34 +532,13 @@ function parseVerseNumber(verse: any): number {
  */
 export async function fetchVerse(version: string, book: string, chapter: number, verse: number): Promise<Verse> {
   try {
-    const actualVersionId = getActualVersionId(version);
-    const versionName = BIBLE_VERSIONS.find(v => v.id === actualVersionId)?.name || 'Unknown Version';
-    
-    // First get the books list to get the correct book ID
-    const books = await fetchBooks(version);
-    const bookData = books.find(b => 
-      b.id.toLowerCase() === book.toLowerCase() ||
-      b.name.toLowerCase() === book.toLowerCase() ||
-      (b.abbreviation && b.abbreviation.toLowerCase() === book.toLowerCase())
-    );
-    
-    if (!bookData) {
-      console.error(`Book not found: ${book} in ${versionName}`);
-      throw new Error(`Book "${book}" not found in ${versionName}`);
-    }
-
-    // Construct the verse ID in the format the API expects: bookId.chapterNum.verseNum
-    const verseId = `${bookData.id}.${chapter}.${verse}`;
-    
-    // Use the direct verse endpoint with query parameters
-    const verseEndpoint = `/bibles/${actualVersionId}/verses/${verseId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false`;
-    const verseData = await fetchWithCache(verseEndpoint);
+    const formattedBook = formatBookName(book);
+    const verseData = await fetchWithCache(`verses/${formattedBook}.${chapter}.${verse}`);
     
     if (!verseData?.data) {
-      throw new Error(`Could not fetch verse ${verse} from ${bookData.name} ${chapter} in ${versionName}`);
+      throw new Error(`Could not fetch verse ${verse} from ${book} ${chapter}`);
     }
 
-    // The API returns the verse content directly in the data object
     return {
       number: verse,
       text: verseData.data.content || 'Verse text not available'
@@ -594,96 +554,21 @@ export async function fetchVerse(version: string, book: string, chapter: number,
  */
 export async function fetchVerses(version: string, book: string, chapter: number): Promise<Verse[]> {
   try {
-    const actualVersionId = getActualVersionId(version);
+    const formattedBook = formatBookName(book);
+    const versesData = await fetchWithCache(`verses/${formattedBook}.${chapter}`);
     
-    // First get the books list to get the book ID
-    const booksEndpoint = `/bibles/${actualVersionId}/books`;
-    const booksData = await fetchWithCache(booksEndpoint);
-    
-    if (!booksData?.data) {
-      throw new Error('Could not fetch books data');
-    }
-    
-    // Find the book ID - try both the direct ID and formatted name
-    let bookData = booksData.data.find((b: any) => 
-      b.id === book || // Try direct match
-      b.id === book.toLowerCase() || // Try lowercase
-      b.abbreviation === book.toUpperCase() // Try uppercase (for formatted codes like 'LEV')
-    );
-
-    // If not found, try formatting the book name
-    if (!bookData) {
-      try {
-        const formattedBook = formatBookName(book);
-        bookData = booksData.data.find((b: any) => b.id === formattedBook);
-      } catch (error) {
-        console.debug('Could not format book name:', book);
-      }
-    }
-
-    if (!bookData?.id) {
-      throw new Error(`Book "${book}" not found`);
-    }
-    
-    // Get chapters for the book
-    const chaptersEndpoint = `/bibles/${actualVersionId}/books/${bookData.id}/chapters`;
-    const chaptersData = await fetchWithCache(chaptersEndpoint);
-    
-    if (!chaptersData?.data) {
-      throw new Error('Could not fetch chapter data');
-    }
-    
-    // Find the chapter ID - note that chapter numbers are strings in the API
-    const chapterData = chaptersData.data.find((c: any) => c.number === chapter.toString());
-    if (!chapterData?.id) {
-      throw new Error(`Chapter ${chapter} not found`);
-    }
-
-    // Instead of getting all verses at once, we'll fetch them one by one like fetchVerse does
-    // This is less efficient but matches the working pattern
-    const verses: Verse[] = [];
-    
-    // Get the first verse to determine if the chapter exists
-    const firstVerseEndpoint = `/bibles/${actualVersionId}/verses/${bookData.id}.${chapter}.1?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false`;
-    const firstVerseData = await fetchWithCache(firstVerseEndpoint);
-    
-    if (!firstVerseData?.data) {
-      console.warn('Could not fetch first verse, using default');
+    if (!versesData?.data) {
+      console.warn('Could not fetch verses data, using defaults');
       return generateDefaultVerses(1);
     }
-    
-    // Add the first verse
-    verses.push({
-      number: 1,
-      text: firstVerseData.data.content || 'Verse text not available'
-    });
-    
-    // Now fetch subsequent verses until we get a 404
-    let verseNumber = 2;
-    const maxVerses = 50; // Safety limit
-    
-    while (verseNumber <= maxVerses) {
-      try {
-        const verseEndpoint = `/bibles/${actualVersionId}/verses/${bookData.id}.${chapter}.${verseNumber}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false`;
-        const verseData = await fetchWithCache(verseEndpoint);
-        
-        if (!verseData?.data?.content) {
-          break; // No more verses in this chapter
-        }
-        
-        verses.push({
-          number: verseNumber,
-          text: verseData.data.content
-        });
-        
-        verseNumber++;
-      } catch (error) {
-        // If we get an error, assume we've reached the end of the chapter
-        break;
-      }
-    }
-    
-    return verses.sort((a, b) => a.number - b.number);
+
+    return versesData.data
+      .map((verse: any) => ({
+        number: parseInt(verse.number, 10),
+        text: verse.content
+      }))
+      .filter((verse: Verse) => verse.number > 0)
+      .sort((a: Verse, b: Verse) => a.number - b.number);
   } catch (error) {
     console.error('Error fetching verses:', error);
     return generateDefaultVerses(1);

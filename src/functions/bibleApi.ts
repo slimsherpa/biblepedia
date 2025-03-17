@@ -2,6 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 
 const API_KEY = process.env.BIBLE_API_KEY;
 const BASE_URL = 'https://api.scripture.api.bible/v1';
+const KJV_BIBLE_ID = 'de4e12af7f28f599-01';
 
 export const bibleApi = onRequest(async (req, res) => {
   // Enable CORS
@@ -16,29 +17,25 @@ export const bibleApi = onRequest(async (req, res) => {
   }
 
   try {
-    // Get the endpoint from the URL
-    const endpoint = req.query.endpoint as string;
+    // Get the path from the URL
+    const path = req.query.path as string;
     
     console.log('Bible API Debug:', {
-      endpoint,
+      path,
       apiKeyExists: !!API_KEY,
-      url: `${BASE_URL}${endpoint}`,
       env: process.env.NODE_ENV
     });
     
-    if (!endpoint) {
-      res.status(400).json({ error: 'Missing endpoint parameter' });
-      return;
-    }
-
     if (!API_KEY) {
       console.error('API key missing in environment');
       res.status(500).json({ error: 'Bible API key not configured on server' });
       return;
     }
 
-    // Make the request to the Bible API
+    // Construct the full endpoint URL
+    const endpoint = path ? `/bibles/${KJV_BIBLE_ID}/${path}` : `/bibles/${KJV_BIBLE_ID}`;
     const url = `${BASE_URL}${endpoint}`;
+    
     console.log('Making request to:', url);
     
     const response = await fetch(url, {
