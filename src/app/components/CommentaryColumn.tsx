@@ -45,73 +45,24 @@ function getOriginalLanguage(book: string): string {
   // Map of abbreviated book names to full names
   const bookAbbreviations: Record<string, string> = {
     // Old Testament
-    'GEN': 'genesis',
-    'EXO': 'exodus',
-    'LEV': 'leviticus',
-    'NUM': 'numbers',
-    'DEU': 'deuteronomy',
-    'JOS': 'joshua',
-    'JDG': 'judges',
-    'RUT': 'ruth',
-    '1SA': '1samuel',
-    '2SA': '2samuel',
-    '1KI': '1kings',
-    '2KI': '2kings',
-    '1CH': '1chronicles',
-    '2CH': '2chronicles',
-    'EZR': 'ezra',
-    'NEH': 'nehemiah',
-    'EST': 'esther',
-    'JOB': 'job',
-    'PSA': 'psalms',
-    'PRO': 'proverbs',
-    'ECC': 'ecclesiastes',
-    'SNG': 'songofsolomon',
-    'ISA': 'isaiah',
-    'JER': 'jeremiah',
-    'LAM': 'lamentations',
-    'EZK': 'ezekiel',
-    'DAN': 'daniel',
-    'HOS': 'hosea',
-    'JOL': 'joel',
-    'AMO': 'amos',
-    'OBA': 'obadiah',
-    'JON': 'jonah',
-    'MIC': 'micah',
-    'NAM': 'nahum',
-    'HAB': 'habakkuk',
-    'ZEP': 'zephaniah',
-    'HAG': 'haggai',
-    'ZEC': 'zechariah',
-    'MAL': 'malachi',
+    'GEN': 'genesis', 'EXO': 'exodus', 'LEV': 'leviticus', 'NUM': 'numbers',
+    'DEU': 'deuteronomy', 'JOS': 'joshua', 'JDG': 'judges', 'RUT': 'ruth',
+    '1SA': '1samuel', '2SA': '2samuel', '1KI': '1kings', '2KI': '2kings',
+    '1CH': '1chronicles', '2CH': '2chronicles', 'EZR': 'ezra', 'NEH': 'nehemiah',
+    'EST': 'esther', 'JOB': 'job', 'PSA': 'psalms', 'PRO': 'proverbs',
+    'ECC': 'ecclesiastes', 'SNG': 'songofsolomon', 'ISA': 'isaiah', 'JER': 'jeremiah',
+    'LAM': 'lamentations', 'EZK': 'ezekiel', 'DAN': 'daniel', 'HOS': 'hosea',
+    'JOL': 'joel', 'AMO': 'amos', 'OBA': 'obadiah', 'JON': 'jonah',
+    'MIC': 'micah', 'NAM': 'nahum', 'HAB': 'habakkuk', 'ZEP': 'zephaniah',
+    'HAG': 'haggai', 'ZEC': 'zechariah', 'MAL': 'malachi',
     // New Testament
-    'MAT': 'matthew',
-    'MRK': 'mark',
-    'LUK': 'luke',
-    'JHN': 'john',
-    'ACT': 'acts',
-    'ROM': 'romans',
-    '1CO': '1corinthians',
-    '2CO': '2corinthians',
-    'GAL': 'galatians',
-    'EPH': 'ephesians',
-    'PHP': 'philippians',
-    'COL': 'colossians',
-    '1TH': '1thessalonians',
-    '2TH': '2thessalonians',
-    '1TI': '1timothy',
-    '2TI': '2timothy',
-    'TIT': 'titus',
-    'PHM': 'philemon',
-    'HEB': 'hebrews',
-    'JAS': 'james',
-    '1PE': '1peter',
-    '2PE': '2peter',
-    '1JN': '1john',
-    '2JN': '2john',
-    '3JN': '3john',
-    'JUD': 'jude',
-    'REV': 'revelation'
+    'MAT': 'matthew', 'MRK': 'mark', 'LUK': 'luke', 'JHN': 'john',
+    'ACT': 'acts', 'ROM': 'romans', '1CO': '1corinthians', '2CO': '2corinthians',
+    'GAL': 'galatians', 'EPH': 'ephesians', 'PHP': 'philippians', 'COL': 'colossians',
+    '1TH': '1thessalonians', '2TH': '2thessalonians', '1TI': '1timothy', '2TI': '2timothy',
+    'TIT': 'titus', 'PHM': 'philemon', 'HEB': 'hebrews', 'JAS': 'james',
+    '1PE': '1peter', '2PE': '2peter', '1JN': '1john', '2JN': '2john',
+    '3JN': '3john', 'JUD': 'jude', 'REV': 'revelation'
   };
 
   const hebrewBooks = ['genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy', 'joshua', 'judges', 'ruth', '1samuel', '2samuel', '1kings', '2kings', '1chronicles', '2chronicles', 'ezra', 'nehemiah', 'esther', 'job', 'psalms', 'proverbs', 'ecclesiastes', 'songofsolomon', 'isaiah', 'jeremiah', 'lamentations', 'ezekiel', 'daniel', 'hosea', 'joel', 'amos', 'obadiah', 'jonah', 'micah', 'nahum', 'habakkuk', 'zephaniah', 'haggai', 'zechariah', 'malachi'];
@@ -121,12 +72,6 @@ function getOriginalLanguage(book: string): string {
   // Convert book name to lowercase and handle both full names and abbreviations
   const normalizedBook = book?.toLowerCase() || '';
   const fullBookName = bookAbbreviations[normalizedBook.toUpperCase()] || normalizedBook;
-  
-  console.log('Normalized book name:', {
-    original: book,
-    normalized: normalizedBook,
-    full: fullBookName
-  });
   
   if (hebrewBooks.includes(fullBookName)) {
     if (aramaicSections.includes(fullBookName)) {
@@ -140,21 +85,14 @@ function getOriginalLanguage(book: string): string {
   return 'Unknown';
 }
 
-// Helper function to check if a version is available
-function isVersionAvailable(version: ExtendedBibleVersion): boolean {
-  return true; // All versions in BIBLE_VERSIONS are immediately available
-}
-
 // Helper function to get available versions based on book
 function getAvailableVersions(book: string): ExtendedBibleVersion[] {
   const language = getOriginalLanguage(book);
   
-  // Start with modern and classical versions
-  const baseVersions = EXTENDED_VERSIONS.filter(v => 
-    v.language === 'en'
-  );
+  // Get English versions
+  const englishVersions = EXTENDED_VERSIONS.filter(v => v.language === 'en');
   
-  // Add appropriate original language versions
+  // Get original language versions based on the book
   const originalVersions = EXTENDED_VERSIONS.filter(v => {
     if (language === 'Hebrew' || language === 'Hebrew and Aramaic') {
       return v.language === 'heb';
@@ -164,7 +102,12 @@ function getAvailableVersions(book: string): ExtendedBibleVersion[] {
     return false;
   });
   
-  return [...baseVersions, ...originalVersions];
+  // Return versions in order: modern English, classical English, original language
+  return [
+    ...englishVersions.filter(v => v.type === 'modern'),
+    ...englishVersions.filter(v => v.type === 'classical'),
+    ...originalVersions
+  ];
 }
 
 export default function CommentaryColumn({ 
@@ -176,7 +119,7 @@ export default function CommentaryColumn({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verseData, setVerseData] = useState<VerseData[]>([]);
-  const [showAllTranslations, setShowAllTranslations] = useState(false);
+  const [showAllTranslations, setShowAllTranslations] = useState(true); // Always show all translations
 
   useEffect(() => {
     async function loadVerseData() {
@@ -187,10 +130,8 @@ export default function CommentaryColumn({
 
       setLoading(true);
       try {
-        // Load verse data for each version
-        const versionsToLoad = showAllTranslations 
-          ? EXTENDED_VERSIONS.filter(v => v.isSupported)
-          : EXTENDED_VERSIONS.filter(v => v.id === version);
+        // Get appropriate versions for this book
+        const versionsToLoad = getAvailableVersions(book);
 
         const versePromises = versionsToLoad.map(async (v) => {
           try {
@@ -210,7 +151,22 @@ export default function CommentaryColumn({
 
         const results = await Promise.all(versePromises);
         const validResults = results.filter((r): r is VerseData => r !== null);
-        setVerseData(validResults);
+        
+        // Group and sort translations
+        const groupedResults = {
+          modern: validResults.filter(r => r.type === 'modern'),
+          classical: validResults.filter(r => r.type === 'classical'),
+          original: validResults.filter(r => r.type === 'original')
+        };
+        
+        // Combine in preferred order
+        const sortedResults = [
+          ...groupedResults.modern,
+          ...groupedResults.classical,
+          ...groupedResults.original
+        ];
+        
+        setVerseData(sortedResults);
         setError(null);
       } catch (err) {
         const errorMessage = getErrorMessage(err);
@@ -222,7 +178,7 @@ export default function CommentaryColumn({
     }
 
     loadVerseData();
-  }, [book, chapter, verse, version, showAllTranslations]);
+  }, [book, chapter, verse, version]);
 
   return (
     <div className="flex-1 h-full flex flex-col bg-white">
@@ -248,76 +204,24 @@ export default function CommentaryColumn({
           </div>
         ) : loading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-700"></div>
           </div>
         ) : error ? (
-          <div className="p-4 text-red-500">{error}</div>
+          <div className="text-sm text-red-500 font-sans p-4">{error}</div>
         ) : (
           <div className="p-4">
-            {/* Translations Section */}
-            {verseData.length > 0 && (
-              <div className="mb-6">
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  {/* Current Translation */}
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center">
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {verseData[0].displayName}
-                      </h3>
-                      <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                        verseData[0].type === 'original' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : verseData[0].type === 'classical'
-                          ? 'bg-gray-200 text-gray-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {verseData[0].type}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowAllTranslations(!showAllTranslations)}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      {showAllTranslations ? 'Show Less' : 'See Additional Translations'}
-                    </button>
-                  </div>
-                  <p className="text-gray-800 mt-2">{verseData[0].text}</p>
-
-                  {/* Additional Translations */}
-                  {showAllTranslations && verseData.length > 1 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
-                      {verseData.slice(1).map((data, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="flex items-center">
-                            <h4 className="text-sm font-medium text-gray-900">
-                              {data.displayName}
-                            </h4>
-                            <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                              data.type === 'original' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : data.type === 'classical'
-                                ? 'bg-gray-200 text-gray-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {data.type}
-                            </span>
-                          </div>
-                          <p className="text-gray-800">{data.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             <VerseCommentaryDisplay
               book={book}
-              chapter={chapter as number}
-              verse={verse as number}
+              chapter={chapter}
+              verse={verse}
               verseText={verseData[0]?.text || ''}
               isSummary={false}
-              translations={verseData}
+              translations={verseData.map(v => ({
+                version: v.version,
+                text: v.text,
+                type: v.type,
+                displayName: v.displayName
+              }))}
             />
           </div>
         )}

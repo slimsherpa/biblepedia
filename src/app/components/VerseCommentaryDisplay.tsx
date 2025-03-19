@@ -24,6 +24,32 @@ interface VerseCommentaryDisplayProps {
   }>;
 }
 
+// Helper function to format book name
+function formatBookName(book: string): string {
+  // Convert abbreviation to proper name
+  const bookNames: Record<string, string> = {
+    'GEN': 'Genesis', 'EXO': 'Exodus', 'LEV': 'Leviticus', 'NUM': 'Numbers',
+    'DEU': 'Deuteronomy', 'JOS': 'Joshua', 'JDG': 'Judges', 'RUT': 'Ruth',
+    '1SA': '1 Samuel', '2SA': '2 Samuel', '1KI': '1 Kings', '2KI': '2 Kings',
+    '1CH': '1 Chronicles', '2CH': '2 Chronicles', 'EZR': 'Ezra', 'NEH': 'Nehemiah',
+    'EST': 'Esther', 'JOB': 'Job', 'PSA': 'Psalms', 'PRO': 'Proverbs',
+    'ECC': 'Ecclesiastes', 'SNG': 'Song of Solomon', 'ISA': 'Isaiah', 'JER': 'Jeremiah',
+    'LAM': 'Lamentations', 'EZK': 'Ezekiel', 'DAN': 'Daniel', 'HOS': 'Hosea',
+    'JOL': 'Joel', 'AMO': 'Amos', 'OBA': 'Obadiah', 'JON': 'Jonah',
+    'MIC': 'Micah', 'NAM': 'Nahum', 'HAB': 'Habakkuk', 'ZEP': 'Zephaniah',
+    'HAG': 'Haggai', 'ZEC': 'Zechariah', 'MAL': 'Malachi',
+    'MAT': 'Matthew', 'MRK': 'Mark', 'LUK': 'Luke', 'JHN': 'John',
+    'ACT': 'Acts', 'ROM': 'Romans', '1CO': '1 Corinthians', '2CO': '2 Corinthians',
+    'GAL': 'Galatians', 'EPH': 'Ephesians', 'PHP': 'Philippians', 'COL': 'Colossians',
+    '1TH': '1 Thessalonians', '2TH': '2 Thessalonians', '1TI': '1 Timothy', '2TI': '2 Timothy',
+    'TIT': 'Titus', 'PHM': 'Philemon', 'HEB': 'Hebrews', 'JAS': 'James',
+    '1PE': '1 Peter', '2PE': '2 Peter', '1JN': '1 John', '2JN': '2 John',
+    '3JN': '3 John', 'JUD': 'Jude', 'REV': 'Revelation'
+  };
+  
+  return bookNames[book.toUpperCase()] || book;
+}
+
 export default function VerseCommentaryDisplay({ 
   book, 
   chapter, 
@@ -88,6 +114,13 @@ export default function VerseCommentaryDisplay({
     setEditSummary('');
   }
 
+  // Group translations by type
+  const groupedTranslations = {
+    modern: translations.filter(t => t.type === 'modern'),
+    classical: translations.filter(t => t.type === 'classical'),
+    original: translations.filter(t => t.type === 'original')
+  };
+
   if (loading) {
     return (
       <div className="p-4">
@@ -100,14 +133,81 @@ export default function VerseCommentaryDisplay({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Remove the duplicate Verse Text section */}
-      {isSummary && (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-500 mb-2">
-            Summary
-          </h3>
-          <p className="text-gray-800">{verseText}</p>
+    <div className="space-y-6">
+      {/* Translations Section */}
+      {translations.length > 0 && (
+        <div>
+          {/* Verse Reference */}
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {formatBookName(book)} {chapter}:{verse}
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {/* Modern Translations */}
+            {groupedTranslations.modern.map((translation) => (
+              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    Modern
+                  </span>
+                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                    {translation.displayName === 'New Revised Standard Version' ? 'NRSV' : translation.displayName}
+                  </span>
+                </div>
+                <div 
+                  className="text-gray-800 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
+                  }}
+                />
+              </div>
+            ))}
+
+            {/* Classical Translations */}
+            {groupedTranslations.classical.map((translation) => (
+              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                    Classical
+                  </span>
+                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                    {translation.displayName === 'King James Version' ? 'KJV' : translation.displayName}
+                  </span>
+                </div>
+                <div 
+                  className="text-gray-800 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
+                  }}
+                />
+              </div>
+            ))}
+
+            {/* Original Language */}
+            {groupedTranslations.original.map((translation) => (
+              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                    Original
+                  </span>
+                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                    {translation.displayName === 'Hebrew Bible' ? 'Hebrew' : 
+                     translation.displayName === 'Text-Critical Greek New Testament' ? 'Greek NT' :
+                     translation.displayName === 'Brenton Greek Septuagint' ? 'LXX' :
+                     translation.displayName}
+                  </span>
+                </div>
+                <div 
+                  className="text-gray-800 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
+                  }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

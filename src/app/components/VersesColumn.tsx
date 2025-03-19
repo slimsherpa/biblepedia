@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchVerses } from '@/lib/api/bibleApi';
-import { getErrorMessage } from '@/lib/utils/errorHandling';
-import { getVerseCommentary } from '@/lib/firebase/commentaryManagement';
+import { getVerseCommentary } from '@/lib/firebase/verseManagement';
 
 interface VersesColumnProps {
   version: string;
@@ -11,7 +9,7 @@ interface VersesColumnProps {
   chapter: number | 'S' | null;
   selectedVerse: number | 'S' | null;
   onSelectVerse: (verse: number | 'S') => void;
-  verses: { number: number | 'S'; content: string }[];
+  verses: { number: number | 'S'; content: string; reference: string }[];
   loading: boolean;
   error: string | null;
 }
@@ -19,15 +17,17 @@ interface VersesColumnProps {
 interface Verse {
   number: number | 'S';
   text: string;
+  reference: string;
   hasCommentary?: boolean;
 }
 
 // Default verses to use if API fails
 const DEFAULT_VERSES: Verse[] = [
-  { number: 'S', text: 'Summary text summary text summary text summary text' },
+  { number: 'S', text: 'Summary text summary text summary text summary text', reference: 'DEFAULT.1.S' },
   ...Array.from({ length: 10 }, (_, i) => ({ 
     number: i + 1, 
-    text: `This is placeholder text for verse ${i + 1}.` 
+    text: `This is placeholder text for verse ${i + 1}.`,
+    reference: `DEFAULT.1.${i + 1}`
   }))
 ];
 
@@ -61,10 +61,14 @@ export default function VersesColumn({
       try {
         const processed = await Promise.all(
           incomingVerses.map(async (verse) => {
-            const hasCommentary = await getVerseCommentary(`${book.toUpperCase()}.${chapter}.${verse.number}`) !== null;
+            // Use the provided reference or generate one
+            const reference = verse.reference || `${book.toUpperCase()}.${chapter}.${verse.number}`;
+            const hasCommentary = await getVerseCommentary(reference) !== null;
+            
             return {
               number: verse.number,
               text: verse.content,
+              reference,
               hasCommentary
             } as Verse;
           })
@@ -113,7 +117,7 @@ export default function VersesColumn({
           <div className="divide-y divide-gray-100">
             {versesWithCommentary.map((verse) => (
               <button
-                key={verse.number}
+                key={verse.reference}
                 className={`w-full py-2 px-3 text-left transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm flex items-start group ${
                   selectedVerse === verse.number
                     ? 'bg-blue-50 text-blue-700 font-medium' 
