@@ -10,18 +10,20 @@ import EditHistory from './EditHistory';
 import EditCommentaryModal from './EditCommentaryModal';
 import { marked } from 'marked'; // For Markdown rendering
 
+interface Commentary {
+  text: string;
+  author: string;
+  timestamp: number;
+  references?: string[];
+  tags?: string[];
+}
+
 interface VerseCommentaryDisplayProps {
-  book: string;
-  chapter: number;
-  verse: number;
-  verseText: string;
-  isSummary: boolean;
-  translations: Array<{
-    version: string;
-    text: string;
-    type: 'modern' | 'classical' | 'original';
-    displayName: string;
-  }>;
+  reference: string;
+  text: string;
+  commentary: Commentary | null;
+  canEdit: boolean;
+  onEdit: () => void;
 }
 
 // Helper function to format book name
@@ -50,248 +52,62 @@ function formatBookName(book: string): string {
   return bookNames[book.toUpperCase()] || book;
 }
 
-export default function VerseCommentaryDisplay({ 
-  book, 
-  chapter, 
-  verse, 
-  verseText,
-  isSummary,
-  translations
+export default function VerseCommentaryDisplay({
+  reference,
+  text,
+  commentary,
+  canEdit,
+  onEdit
 }: VerseCommentaryDisplayProps) {
-  const { userProfile } = useAuth();
-  const [commentary, setCommentary] = useState<VerseCommentary | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [editSummary, setEditSummary] = useState('');
-  const [showDebate, setShowDebate] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Generate the verse ID based on the props
-  const verseId = `${book.toUpperCase()}.${chapter}.${verse}${isSummary ? '.S' : ''}`;
-
-  const loadCommentary = useCallback(async () => {
-    setLoading(true);
-    const data = await getVerseCommentary(verseId);
-    setCommentary(data);
-    setLoading(false);
-  }, [verseId]);
-
-  useEffect(() => {
-    loadCommentary();
-  }, [loadCommentary]);
-
-  async function handleSaveEdit() {
-    if (!userProfile || !canAddCommentary(userProfile)) return;
-
-    const success = await createCommentaryEdit(
-      verseId,
-      editContent,
-      editSummary,
-      userProfile
-    );
-
-    if (success) {
-      await loadCommentary();
-      setIsEditing(false);
-      setEditContent('');
-      setEditSummary('');
-    }
-  }
-
-  function handleStartEdit() {
-    if (!commentary) {
-      setEditContent('');
-    } else {
-      setEditContent(commentary.currentContent || '');
-    }
-    setIsEditing(true);
-  }
-
-  function handleCancelEdit() {
-    setIsEditing(false);
-    setEditContent('');
-    setEditSummary('');
-  }
-
-  // Group translations by type
-  const groupedTranslations = {
-    modern: translations.filter(t => t.type === 'modern'),
-    classical: translations.filter(t => t.type === 'classical'),
-    original: translations.filter(t => t.type === 'original')
-  };
-
-  if (loading) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Translations Section */}
-      {translations.length > 0 && (
-        <div>
-          {/* Verse Reference */}
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {formatBookName(book)} {chapter}:{verse}
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            {/* Modern Translations */}
-            {groupedTranslations.modern.map((translation) => (
-              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Modern
-                  </span>
-                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                    {translation.displayName === 'New Revised Standard Version' ? 'NRSV' : translation.displayName}
-                  </span>
-                </div>
-                <div 
-                  className="text-gray-800 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ 
-                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
-                  }}
-                />
-              </div>
-            ))}
-
-            {/* Classical Translations */}
-            {groupedTranslations.classical.map((translation) => (
-              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                    Classical
-                  </span>
-                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                    {translation.displayName === 'King James Version' ? 'KJV' : translation.displayName}
-                  </span>
-                </div>
-                <div 
-                  className="text-gray-800 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ 
-                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
-                  }}
-                />
-              </div>
-            ))}
-
-            {/* Original Language */}
-            {groupedTranslations.original.map((translation) => (
-              <div key={translation.version} className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                    Original
-                  </span>
-                  <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
-                    {translation.displayName === 'Hebrew Bible' ? 'Hebrew' : 
-                     translation.displayName === 'Text-Critical Greek New Testament' ? 'Greek NT' :
-                     translation.displayName === 'Brenton Greek Septuagint' ? 'LXX' :
-                     translation.displayName}
-                  </span>
-                </div>
-                <div 
-                  className="text-gray-800 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ 
-                    __html: translation.text.replace(/<span[^>]*data-number[^>]*>[^<]*<\/span>/g, '')
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Commentary Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-700">
-            {isSummary ? 'Summary Commentary' : 'Commentary'}
-          </h3>
-          {userProfile && canAddCommentary(userProfile) && (
-            <button
-              onClick={handleStartEdit}
-              className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
-            >
-              Edit
-            </button>
-          )}
-        </div>
-
-        <div>
-          <div 
-            className="prose max-w-none"
-            dangerouslySetInnerHTML={{ 
-              __html: marked(commentary?.currentContent || 'No commentary yet.') 
-            }} 
-          />
-          {commentary?.contributors && commentary.contributors.length > 0 && (
-            <div className="mt-4 text-sm text-gray-500">
-              {commentary.contributors.length} contributor{commentary.contributors.length !== 1 ? 's' : ''}
+    <div className="space-y-4">
+      {/* Commentary content */}
+      {commentary ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="prose dark:prose-invert max-w-none">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              By {commentary.author} • {new Date(commentary.timestamp).toLocaleDateString()}
             </div>
-          )}
+            <div className="whitespace-pre-wrap">{commentary.text}</div>
+            {commentary.references && commentary.references.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-semibold mb-2">References</h4>
+                <ul className="list-disc pl-5">
+                  {commentary.references.map((ref, index) => (
+                    <li key={index} className="text-sm">{ref}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {commentary.tags && commentary.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {commentary.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Edit History and Debate Buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="flex-1 py-2 px-4 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md"
-        >
-          History ({commentary?.edits?.length || 0})
-        </button>
-        <button
-          onClick={() => setShowDebate(!showDebate)}
-          className="flex-1 py-2 px-4 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md"
-        >
-          Debate ({commentary?.debate?.length || 0})
-        </button>
-      </div>
-
-      {/* Edit History */}
-      {showHistory && commentary && (
-        <EditHistory
-          edits={commentary.edits || []}
-          onClose={() => setShowHistory(false)}
-        />
+      ) : (
+        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+          No commentary available for this verse yet.
+        </div>
       )}
 
-      {/* Debate Section */}
-      {showDebate && (
-        <DebateSection
-          verseId={verseId}
-          onClose={() => setShowDebate(false)}
-          debate={commentary?.debate || []}
-          onUpdate={loadCommentary}
-        />
+      {/* Edit button */}
+      {canEdit && (
+        <button
+          onClick={onEdit}
+          className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+        >
+          {commentary ? 'Edit Commentary' : 'Add Commentary'}
+        </button>
       )}
-
-      {/* Edit Commentary Modal */}
-      <EditCommentaryModal
-        isOpen={isEditing}
-        onClose={handleCancelEdit}
-        content={editContent}
-        setContent={setEditContent}
-        onSave={handleSaveEdit}
-        book={book}
-        chapter={chapter}
-        verse={verse}
-        verseText={verseText}
-        translations={translations}
-        debate={commentary?.debate || []}
-        verseId={verseId}
-        onDebateUpdate={loadCommentary}
-      />
     </div>
   );
 } 

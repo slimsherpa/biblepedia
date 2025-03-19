@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { marked } from 'marked'
 import { VerseCommentary } from '@/lib/types/commentary'
 import { DebatePost } from '@/lib/types/debate'
 import { addDebatePost, voteOnDebatePost } from '@/lib/firebase/commentaryManagement'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { format } from 'date-fns'
-import { BIBLE_VERSIONS } from '@/lib/api/bibleApi'
-import { fetchVerse } from '@/lib/api/bibleApi'
+import { BIBLE_VERSIONS } from '@/lib/api/bibleConfig'
+import { getVerse } from '@/lib/api/bibleApi'
 import Image from 'next/image'
 
 interface TranslationType {
@@ -16,20 +16,21 @@ interface TranslationType {
   displayName?: string;
 }
 
+interface Commentary {
+  text: string;
+  author: string;
+  timestamp: number;
+  references?: string[];
+  tags?: string[];
+}
+
 interface EditCommentaryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  content: string;
-  setContent: (content: string) => void;
-  onSave: () => void;
-  book: string;
-  chapter: number;
-  verse: number;
-  verseText: string;
-  translations: TranslationType[];
-  debate: DebatePost[];
-  verseId: string;
-  onDebateUpdate: () => void;
+  onSave: (commentary: Commentary) => void;
+  initialCommentary?: Commentary | null;
+  reference: string;
+  text: string;
 }
 
 interface ExtendedDebatePost extends DebatePost {
@@ -233,343 +234,182 @@ function getVersionDisplayName(versionId: string): string {
 export default function EditCommentaryModal({
   isOpen,
   onClose,
-  content,
-  setContent,
   onSave,
-  book,
-  chapter,
-  verse,
-  verseText,
-  translations,
-  debate,
-  verseId,
-  onDebateUpdate
+  initialCommentary,
+  reference,
+  text
 }: EditCommentaryModalProps) {
-  const modalRef = useRef<HTMLDivElement>(null)
-  const { userProfile } = useAuth()
-  const [youtubeLink, setYoutubeLink] = useState('')
-  const [reference, setReference] = useState('')
-  const [newDebatePost, setNewDebatePost] = useState('')
-  const [showYoutubeInput, setShowYoutubeInput] = useState(false)
-  const [showReferenceInput, setShowReferenceInput] = useState(false)
-  const [allTranslations, setAllTranslations] = useState(translations)
+  const [commentaryText, setCommentaryText] = useState(initialCommentary?.text || '');
+  const [references, setReferences] = useState<string[]>(initialCommentary?.references || []);
+  const [tags, setTags] = useState<string[]>(initialCommentary?.tags || []);
+  const [newReference, setNewReference] = useState('');
+  const [newTag, setNewTag] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
-    async function loadAllTranslations() {
-      if (!book || !chapter || !verse) return;
-
-      try {
-        const translationPromises = BIBLE_VERSIONS
-          .filter(v => v.isSupported)
-          .map(async (v) => {
-            try {
-              const data = await fetchVerse(v.id, book, chapter, verse);
-              const type = v.language === 'en' 
-                ? (v.id === '9879dbb7cfe39e4d-01' ? 'modern' as const : 'classical' as const)
-                : 'original' as const;
-              
-              return {
-                version: v.id,
-                displayName: v.name,
-                text: data.text,
-                type
-              };
-            } catch (err) {
-              console.error(`Error loading verse for version ${v.id}:`, err);
-              return null;
-            }
-          });
-
-        const results = await Promise.all(translationPromises);
-        const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
-        setAllTranslations(validResults);
-      } catch (err) {
-        console.error('Error loading translations:', err);
-      }
-    }
-
     if (isOpen) {
-      loadAllTranslations();
+      setCommentaryText(initialCommentary?.text || '');
+      setReferences(initialCommentary?.references || []);
+      setTags(initialCommentary?.tags || []);
     }
-  }, [isOpen, book, chapter, verse]);
-
-  useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'hidden'
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
-    }
-  }, [isOpen, onClose])
-
-  const handleAddYoutube = () => {
-    if (youtubeLink) {
-      setContent(content + `\n\n<YoutubeEmbed url="${youtubeLink}" />`)
-      setYoutubeLink('')
-      setShowYoutubeInput(false)
-    }
-  }
+  }, [isOpen, initialCommentary]);
 
   const handleAddReference = () => {
-    if (reference) {
-      setContent(content + `\n\n> Reference: ${reference}`)
-      setReference('')
-      setShowReferenceInput(false)
+    if (newReference.trim()) {
+      setReferences([...references, newReference.trim()]);
+      setNewReference('');
     }
-  }
+  };
 
-  const handlePostDebate = async () => {
-    if (!userProfile || !newDebatePost.trim()) return
+  const handleAddTag = () => {
+    if (newTag.trim()) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveReference = (index: number) => {
+    setReferences(references.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveTag = (index: number) => {
+    setTags(tags.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = () => {
+    if (!user) return;
     
-    const success = await addDebatePost(
-      verseId,
-      content,
-      userProfile,
-      newDebatePost
-    );
-
-    if (success) {
-      setNewDebatePost('')
-      onDebateUpdate()
-    }
-  }
-
-  // Add sorting and threading logic
-  const sortedDebate = debate.map(post => ({
-    ...post,
-    verseId,
-    votes: (post as any).votes || { up: [], down: [] },
-    references: (post as any).references || [],
-  })) as ExtendedDebatePost[];
-
-  sortedDebate.sort((a, b) => {
-    const scoreA = a.votes.up.length - a.votes.down.length;
-    const scoreB = b.votes.up.length - b.votes.down.length;
-    if (scoreB !== scoreA) return scoreB - scoreA;
+    onSave({
+      text: commentaryText,
+      author: user.email || 'Anonymous',
+      timestamp: Date.now(),
+      references,
+      tags
+    });
     
-    const timeA = (a.timestamp as any)?.seconds || 0;
-    const timeB = (b.timestamp as any)?.seconds || 0;
-    return timeB - timeA;
-  });
-
-  const threadedDebate = sortedDebate.reduce((acc, post) => {
-    if (!post.parentPostId) {
-      acc.push({
-        ...post,
-        replies: sortedDebate
-          .filter(p => p.parentPostId === post.id)
-      });
-    }
-    return acc;
-  }, [] as ExtendedDebatePost[]);
-
-  if (!isOpen) return null
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
-      
-      <div className="fixed inset-4 flex items-center justify-center">
-        <div
-          ref={modalRef}
-          className="relative flex w-full max-w-[95vw] h-[90vh] bg-white rounded-lg shadow-xl"
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Left Side - Commentary */}
-          <div className="flex-1 flex flex-col h-full border-r border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {book} {chapter}:{verse}
-              </h2>
+    <div className={`fixed inset-0 z-50 ${isOpen ? 'block' : 'hidden'}`}>
+      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      <div className="absolute inset-10 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-auto">
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{reference}</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">{text}</p>
+          </div>
+
+          {/* Commentary Text */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Commentary
+            </label>
+            <textarea
+              value={commentaryText}
+              onChange={(e) => setCommentaryText(e.target.value)}
+              className="w-full h-40 px-3 py-2 text-gray-700 dark:text-gray-300 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Write your commentary here..."
+            />
+          </div>
+
+          {/* References */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              References
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newReference}
+                onChange={(e) => setNewReference(e.target.value)}
+                className="flex-1 px-3 py-2 text-gray-700 dark:text-gray-300 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Add a reference..."
+                onKeyPress={(e) => e.key === 'Enter' && handleAddReference()}
+              />
+              <button
+                onClick={handleAddReference}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Add
+              </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Translations */}
-              <div className="space-y-3 mb-6">
-                {allTranslations.map((t, i) => (
-                  <div 
-                    key={i} 
-                    className={`p-3 rounded-lg ${
-                      t.type === 'original' 
-                        ? 'bg-blue-50 border border-blue-100' 
-                        : t.type === 'classical'
-                        ? 'bg-gray-50 border border-gray-100'
-                        : 'bg-white border border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-900">
-                        {t.displayName || getVersionDisplayName(t.version)}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-xs ${
-                        t.type === 'original'
-                          ? 'bg-blue-100 text-blue-800'
-                          : t.type === 'classical'
-                          ? 'bg-gray-200 text-gray-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {t.type}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700">{t.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Commentary Editor */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Commentary
-                  </label>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                    placeholder="Enter your commentary here..."
-                    rows={8}
-                  />
-                </div>
-
-                {/* Helper Buttons */}
-                <div className="space-y-2">
-                  <div>
-                    <button
-                      onClick={() => setShowYoutubeInput(!showYoutubeInput)}
-                      className="text-sm text-blue-600 hover:text-blue-500"
-                    >
-                      + Add Youtube Video
-                    </button>
-                    {showYoutubeInput && (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          type="text"
-                          value={youtubeLink}
-                          onChange={(e) => setYoutubeLink(e.target.value)}
-                          placeholder="Enter Youtube URL"
-                          className="flex-1 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                        />
-                        <button
-                          onClick={handleAddYoutube}
-                          className="px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-500 rounded-md"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <button
-                      onClick={() => setShowReferenceInput(!showReferenceInput)}
-                      className="text-sm text-blue-600 hover:text-blue-500"
-                    >
-                      + Add Reference
-                    </button>
-                    {showReferenceInput && (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          type="text"
-                          value={reference}
-                          onChange={(e) => setReference(e.target.value)}
-                          placeholder="Enter reference URL or text"
-                          className="flex-1 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                        />
-                        <button
-                          onClick={handleAddReference}
-                          className="px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-500 rounded-md"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Preview */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">Preview</h3>
-                  <div 
-                    className="mt-2 p-4 bg-gray-50 rounded-lg prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: marked(content) }}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap gap-2">
+              {references.map((ref, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm flex items-center gap-2"
+                >
+                  {ref}
                   <button
-                    onClick={onClose}
-                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+                    onClick={() => handleRemoveReference(index)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   >
-                    Cancel
+                    ×
                   </button>
-                  <button
-                    onClick={onSave}
-                    className="px-3 py-1 text-sm text-white bg-blue-600 hover:bg-blue-500 rounded-md"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </div>
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Right Side - Debate */}
-          <div className="flex-1 flex flex-col h-full">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Scholarly Debate</h2>
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tags
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                className="flex-1 px-3 py-2 text-gray-700 dark:text-gray-300 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Add a tag..."
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+              />
               <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500"
+                onClick={handleAddTag}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
-                <span className="sr-only">Close</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Add
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Debate Posts */}
-              <div className="space-y-4">
-                {threadedDebate.map((post, index) => (
-                  <DebateThread 
-                    key={index} 
-                    post={post}
-                    onUpdate={onDebateUpdate} 
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Add to Discussion */}
-            <div className="p-6 border-t border-gray-200">
-              <textarea
-                value={newDebatePost}
-                onChange={(e) => setNewDebatePost(e.target.value)}
-                placeholder="What are your thoughts?"
-                className="w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                rows={4}
-              />
-              <div className="mt-2 flex justify-end">
-                <button
-                  onClick={handlePostDebate}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-md"
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm flex items-center gap-2"
                 >
-                  Post
-                </button>
-              </div>
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(index)}
+                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
             </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              disabled={!commentaryText.trim()}
+            >
+              Save Commentary
+            </button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 } 

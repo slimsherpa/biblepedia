@@ -12,6 +12,7 @@ const nextConfig = {
       },
     ],
     dangerouslyAllowSVG: true,
+    unoptimized: true,
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -19,6 +20,7 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
+  output: 'standalone',
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

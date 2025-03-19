@@ -33,6 +33,11 @@ service cloud.firestore {
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['superadmin', 'admin', 'scholar']);
     }
 
+    // Allow public read/write access to the bible-cache collection
+    match /bible-cache/{document=**} {
+      allow read, write: if true;
+    }
+
     // Allow anyone to read verses, but only admins can write
     match /verses/{verseId} {
       allow read: if true;  // Everyone can read cached verses
@@ -73,6 +78,11 @@ service cloud.firestore {
         isAdmin() || isSuperAdmin()
       );
       allow delete: if isSuperAdmin();
+    }
+
+    // Default rule - deny everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

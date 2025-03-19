@@ -1,252 +1,294 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchBibleVersions, DEFAULT_VERSION } from '@/lib/api/bibleApi';
-import { getErrorMessage } from '@/lib/utils/errorHandling';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { getBooks, getChapters, getVerses } from '@/lib/api/bibleApi';
+import { DEFAULT_VERSION } from '@/lib/api/bibleConfig';
 import BooksColumn from './BooksColumn';
 import ChaptersColumn from './ChaptersColumn';
 import VersesColumn from './VersesColumn';
-import CommentaryColumn from './CommentaryColumn';
+import VerseCommentaryDisplay from './VerseCommentaryDisplay';
+import EditCommentaryModal from './EditCommentaryModal';
+import LoadingSpinner from './LoadingSpinner';
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
-import { getVerses } from '@/lib/firebase/verseManagement';
 
-interface BibleVersion {
+// API Response Types
+interface ApiBook {
   id: string;
   name: string;
-  language: string;
-  fallbackId?: string;
+  nameLong: string;
+  abbreviation: string;
 }
 
-interface Book {
+interface ApiChapter {
+  id: string;
+  number: string;
+  bookId: string;
+  reference: string;
+}
+
+interface ApiVerse {
+  id: string;
+  orgId: string;
+  bookId: string;
+  chapterId: string;
+  reference: string;
+  text: string;
+}
+
+// Component Types
+export interface Book {
   id: string;
   name: string;
+  testament: 'OT' | 'NT';
 }
 
-// Default versions to use if API fails
-const DEFAULT_VERSIONS: BibleVersion[] = [
-  { id: 'en-kjv', name: 'King James Version', language: 'en' },
-  { id: 'en-asv', name: 'American Standard Version', language: 'en' }
-];
+export interface Chapter {
+  id: string;
+  number: number;
+  reference: string;
+}
 
-// Wrapper component for version selector to isolate potential errors
-function VersionSelector({ 
-  versions, 
-  selectedVersion, 
-  onChange, 
-  loading 
-}: { 
-  versions: BibleVersion[], 
-  selectedVersion: string, 
-  onChange: (version: string) => void, 
-  loading: boolean 
-}) {
-  // Safely render version options
-  const renderVersionOptions = () => {
-    try {
-      if (loading) {
-        return <option>Loading versions...</option>;
-      }
-      
-      return versions.map((version) => {
-        try {
-          const id = typeof version.id === 'string' ? version.id : 'unknown';
-          const name = typeof version.name === 'string' ? version.name : 'Unknown';
-          const language = typeof version.language === 'string' ? version.language : 'en';
-          
-          return (
-            <option key={id} value={id}>
-              {name} ({language})
-            </option>
-          );
-        } catch (err) {
-          console.error('Error rendering version option:', err);
-          return null;
-        }
-      }).filter(Boolean);
-    } catch (err) {
-      console.error('Error rendering version options:', err);
-      return <option value="en-kjv">King James Version (en)</option>;
-    }
-  };
+export interface Verse {
+  id: string;
+  orgId: string;
+  bookId: string;
+  chapterId: string;
+  reference: string;
+  text: string;
+}
 
-  return (
-    <select
-      id="version-select"
-      value={selectedVersion}
-      onChange={(e) => onChange(e.target.value)}
-      className="bg-white bg-opacity-10 border border-blue-400 text-white rounded-md px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 text-sm"
-      disabled={loading}
-    >
-      {renderVersionOptions()}
-    </select>
-  );
+export interface Commentary {
+  text: string;
+  author: string;
+  timestamp: number;
+  references?: string[];
+  tags?: string[];
 }
 
 export default function BibleExplorer() {
-  const [versions, setVersions] = useState<BibleVersion[]>(DEFAULT_VERSIONS);
-  const [selectedVersion, setSelectedVersion] = useState<string>(DEFAULT_VERSION);
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<number | 'S' | null>(null);
-  const [selectedVerse, setSelectedVerse] = useState<number | 'S' | null>(null);
-  const [verses, setVerses] = useState<{ number: number | 'S'; content: string }[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { user } = useAuth();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [verses, setVerses] = useState<Verse[]>([]);
+  const [selectedVerse, setSelectedVerse] = useState<Verse | null>(null);
+  const [commentary, setCommentary] = useState<Commentary | null>(null);
+  const [isEditingCommentary, setIsEditingCommentary] = useState(false);
+  const [loading, setLoading] = useState({
+    books: true,
+    chapters: false,
+    verses: false,
+  });
   const [error, setError] = useState<string | null>(null);
 
+  // Load books on mount
   useEffect(() => {
-    async function loadVersions() {
-      try {
-        setLoading(true);
-        
-        const data = await fetchBibleVersions();
-        
-        // Make sure data is an array before setting it
-        if (Array.isArray(data) && data.length > 0) {
-          setVersions(data);
-          setError(null);
-        } else {
-          // If data is not an array, set an error
-          console.error('Invalid data format from Bible API:', data);
-          setError('Failed to load Bible versions: Invalid data format');
-          // Keep the default versions
-        }
-      } catch (err) {
-        // Use our utility to safely get the error message
-        const errorMessage = getErrorMessage(err);
-        setError(errorMessage);
-        console.error('Error loading Bible versions:', errorMessage);
-        // Keep the default versions
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadVersions();
+    loadBooks();
   }, []);
 
-  // Load verses when chapter changes
+  // Load chapters when book is selected
   useEffect(() => {
-    let isCancelled = false;
-
-    async function loadVerses() {
-      if (!selectedBookId || !selectedChapter || selectedChapter === 'S') {
-        // Only clear verses if we don't have valid selection
-        setVerses([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        console.log('Loading regular chapter');
-        // Use Firebase cache system which will handle API fallback
-        const data = await getVerses(selectedVersion, selectedBookId, selectedChapter);
-        if (!isCancelled) {
-          const newVerses = [
-            // Add summary verse at the start of each chapter
-            { number: 'S' as const, content: 'Summary text summary text summary text summary text' },
-            ...data.map(verse => ({
-              number: verse.number,
-              content: verse.content
-            }))
-          ];
-          console.log('Setting verses:', newVerses.length);
-          setVerses(newVerses);
-          setError(null);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          const errorMessage = getErrorMessage(err);
-          setError(errorMessage);
-          console.error('Error loading verses:', errorMessage);
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadVerses();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedBookId, selectedChapter, selectedVersion]);
-
-  // Reset verse when chapter changes, but only if chapter is actually different
-  useEffect(() => {
-    if (selectedVerse !== null) {
-      setSelectedVerse(null);
-    }
-  }, [selectedChapter]);
-
-  // Reset chapter and verse when book changes, but only if book is actually different
-  useEffect(() => {
-    if (selectedChapter !== null) {
+    if (selectedBook) {
+      loadChapters(selectedBook.name);
+    } else {
+      setChapters([]);
       setSelectedChapter(null);
     }
-    if (selectedVerse !== null) {
+  }, [selectedBook]);
+
+  // Load verses when chapter is selected
+  useEffect(() => {
+    if (selectedBook && selectedChapter) {
+      loadVerses(selectedBook.name, selectedChapter.number);
+    } else {
+      setVerses([]);
       setSelectedVerse(null);
     }
-  }, [selectedBookId]);
+  }, [selectedBook, selectedChapter]);
+
+  const loadBooks = async () => {
+    try {
+      setLoading(prev => ({ ...prev, books: true }));
+      setError(null);
+      const response = await getBooks();
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      if (response.data) {
+        // Map API Book type to our Book type
+        const mappedBooks = response.data.map(book => ({
+          id: book.id,
+          name: book.name,
+          testament: book.id.startsWith('GEN') || book.id.startsWith('MAL') ? ('OT' as const) : ('NT' as const)
+        }));
+        setBooks(mappedBooks);
+      }
+    } catch (err) {
+      setError('Failed to load books. Please try again.');
+      console.error('Error loading books:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, books: false }));
+    }
+  };
+
+  const loadChapters = async (bookName: string) => {
+    try {
+      setLoading(prev => ({ ...prev, chapters: true }));
+      setError(null);
+      const response = await getChapters(bookName);
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      if (response.data) {
+        // Map API Chapter type to our Chapter type
+        const mappedChapters = response.data.map(chapter => ({
+          id: chapter.id,
+          number: parseInt(chapter.number, 10),
+          reference: chapter.reference
+        }));
+        setChapters(mappedChapters);
+      }
+    } catch (err) {
+      setError('Failed to load chapters. Please try again.');
+      console.error('Error loading chapters:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, chapters: false }));
+    }
+  };
+
+  const loadVerses = async (bookName: string, chapter: number) => {
+    try {
+      setLoading(prev => ({ ...prev, verses: true }));
+      setError(null);
+      const response = await getVerses(bookName, chapter);
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      if (response.data) {
+        setVerses(response.data);
+      }
+    } catch (err) {
+      setError('Failed to load verses. Please try again.');
+      console.error('Error loading verses:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, verses: false }));
+    }
+  };
+
+  const handleBookSelect = (book: Book) => {
+    setSelectedBook(book);
+    setSelectedChapter(null);
+    setSelectedVerse(null);
+  };
+
+  const handleChapterSelect = (chapter: Chapter) => {
+    setSelectedChapter(chapter);
+    setSelectedVerse(null);
+  };
+
+  const handleVerseSelect = (verse: Verse) => {
+    setSelectedVerse(verse);
+  };
+
+  const handleSaveCommentary = (newCommentary: Commentary) => {
+    setCommentary(newCommentary);
+    setIsEditingCommentary(false);
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button
+            onClick={loadBooks}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      <ErrorBoundary>
-        <Header 
-          version={selectedVersion}
-          onVersionChange={setSelectedVersion}
-          versions={versions}
-          loading={loading}
-        />
-      </ErrorBoundary>
-
-      {/* Main content with four columns */}
-      <div className="flex-1 flex overflow-hidden">
-        <ErrorBoundary>
+    <div className="flex h-full">
+      {/* Books Column */}
+      <div className="w-1/4 border-r border-gray-200 dark:border-gray-700">
+        {loading.books ? (
+          <LoadingSpinner />
+        ) : (
           <BooksColumn
-            version={selectedVersion}
-            selectedBook={selectedBookId}
-            onSelectBook={setSelectedBookId}
+            books={books}
+            selectedBook={selectedBook}
+            onSelect={handleBookSelect}
           />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <ChaptersColumn
-            version={selectedVersion}
-            book={selectedBookId}
-            selectedChapter={selectedChapter}
-            onSelectChapter={setSelectedChapter}
-          />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <VersesColumn
-            version={selectedVersion}
-            book={selectedBookId}
-            chapter={selectedChapter}
-            selectedVerse={selectedVerse}
-            onSelectVerse={setSelectedVerse}
-            verses={verses}
-            loading={loading}
-            error={error}
-          />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <CommentaryColumn
-            version={selectedVersion}
-            book={selectedBookId}
-            chapter={selectedChapter}
-            verse={selectedVerse}
-          />
-        </ErrorBoundary>
+        )}
       </div>
-      
-      {/* Footer */}
-      <footer className="bg-gray-100 border-t p-2 text-center text-gray-600 text-xs">
-        <p>biblepedia.io © {new Date().getFullYear()} - A scholarly Bible wiki for academic study and research</p>
-      </footer>
+
+      {/* Chapters Column */}
+      <div className="w-1/4 border-r border-gray-200 dark:border-gray-700">
+        {loading.chapters ? (
+          <LoadingSpinner />
+        ) : selectedBook ? (
+          <ChaptersColumn
+            chapters={chapters}
+            selectedChapter={selectedChapter}
+            onSelect={handleChapterSelect}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Select a book to view chapters
+          </div>
+        )}
+      </div>
+
+      {/* Verses Column */}
+      <div className="w-1/4 border-r border-gray-200 dark:border-gray-700">
+        {loading.verses ? (
+          <LoadingSpinner />
+        ) : selectedChapter ? (
+          <VersesColumn
+            verses={verses}
+            selectedVerse={selectedVerse}
+            onSelect={handleVerseSelect}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Select a chapter to view verses
+          </div>
+        )}
+      </div>
+
+      {/* Commentary Column */}
+      <div className="w-1/4 p-4">
+        {selectedVerse ? (
+          <VerseCommentaryDisplay
+            reference={selectedVerse.reference}
+            text={selectedVerse.text}
+            commentary={commentary}
+            canEdit={!!user}
+            onEdit={() => setIsEditingCommentary(true)}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Select a verse to view commentary
+          </div>
+        )}
+      </div>
+
+      {/* Edit Commentary Modal */}
+      <EditCommentaryModal
+        isOpen={isEditingCommentary}
+        onClose={() => setIsEditingCommentary(false)}
+        onSave={handleSaveCommentary}
+        initialCommentary={commentary}
+        reference={selectedVerse?.reference || ''}
+        text={selectedVerse?.text || ''}
+      />
     </div>
   );
 } 

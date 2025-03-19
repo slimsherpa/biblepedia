@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-
-// The KJV Bible ID
-const BIBLE_ID = 'de4e12af7f28f599-01';
+import { getBooks, getChapters, getVerses, getVerse } from '@/lib/api/bibleApi';
+import { BIBLE_VERSIONS } from '@/lib/api/bibleConfig';
 
 interface VerseMetadata {
   id: string;
@@ -18,7 +17,7 @@ interface Verse extends VerseMetadata {
   content: string;
 }
 
-function TestAPI() {
+export default function DebugPage() {
   const [version] = useState('de4e12af7f28f599-01');
   const [book, setBook] = useState('GEN');
   const [chapter, setChapter] = useState('1');
@@ -156,7 +155,4 @@ function TestAPI() {
       )}
     </div>
   );
-}
-
-// Export as client-side only component
-export default TestAPI; 
+} 
