@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 // The KJV Bible ID
 const BIBLE_ID = 'de4e12af7f28f599-01';
@@ -18,7 +18,7 @@ interface Verse extends VerseMetadata {
   content: string;
 }
 
-function TestAPI() {
+export default function TestAPI() {
   const [version] = useState('de4e12af7f28f599-01');
   const [book, setBook] = useState('GEN');
   const [chapter, setChapter] = useState('1');
@@ -26,7 +26,29 @@ function TestAPI() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadVerses = useCallback(async () => {
+  useEffect(() => {
+    loadVerses();
+  }, [version, book, chapter]);
+
+  const loadVerseContent = async (verseMetadata: VerseMetadata): Promise<Verse> => {
+    const path = `/bibles/${version}/verses/${verseMetadata.id}?content-type=text&include-notes=false&include-verse-numbers=false&include-chapter-numbers=false`;
+    const response = await fetch(`/api/bible?path=${encodeURIComponent(path)}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch verse content');
+    }
+
+    // Log the verse data to see its structure
+    console.log('Verse data:', data.data);
+
+    return {
+      ...verseMetadata,
+      content: data.data.content || ''
+    };
+  };
+
+  const loadVerses = async () => {
     if (!book || !chapter) return;
     
     setLoading(true);
@@ -51,25 +73,6 @@ function TestAPI() {
         throw new Error('Invalid response format from API');
       }
 
-      // Define loadVerseContent inside useCallback
-      const loadVerseContent = async (verseMetadata: VerseMetadata): Promise<Verse> => {
-        const path = `/bibles/${version}/verses/${verseMetadata.id}?content-type=text&include-notes=false&include-verse-numbers=false&include-chapter-numbers=false`;
-        const response = await fetch(`/api/bible?path=${encodeURIComponent(path)}`);
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch verse content');
-        }
-
-        // Log the verse data to see its structure
-        console.log('Verse data:', data.data);
-
-        return {
-          ...verseMetadata,
-          content: data.data.content || ''
-        };
-      };
-
       // Then get content for each verse
       const versePromises = listData.data.map((verseMetadata: VerseMetadata) => 
         loadVerseContent(verseMetadata)
@@ -87,11 +90,7 @@ function TestAPI() {
     } finally {
       setLoading(false);
     }
-  }, [version, book, chapter]);
-
-  useEffect(() => {
-    loadVerses();
-  }, [loadVerses]);
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -156,7 +155,4 @@ function TestAPI() {
       )}
     </div>
   );
-}
-
-// Export as client-side only component
-export default TestAPI; 
+} 
