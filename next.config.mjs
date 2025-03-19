@@ -20,7 +20,6 @@ const nextConfig = {
   },
   output: 'standalone',
   experimental: {
-    serverActions: true,
     optimizePackageImports: ['@mui/icons-material', '@mui/material'],
     typedRoutes: true,
   },
