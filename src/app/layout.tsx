@@ -15,6 +15,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        <link href="https://cdn.scripture.api.bible/scripture.css" rel="stylesheet" />
         <style>
           {`
             .material-icons {

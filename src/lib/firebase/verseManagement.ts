@@ -1,117 +1,79 @@
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
-import { fetchVerses } from '../api/bibleApi';
+import { bibleApi } from '../api/bibleApi/index';
+import { BibleVerse } from '../types/bible';
 
-const VERSES_COLLECTION = 'verses';
-
-export interface CachedVerse {
+interface VerseData {
   number: number;
   content: string;
+}
+
+interface ChapterVerses {
   version: string;
-  bookId: string;
+  book: string;
   chapter: number;
-  lastUpdated: number;
+  verses: VerseData[];
+  timestamp: number;
 }
 
-export interface ChapterVerses {
-  version: string;
-  bookId: string;
-  chapter: number;
-  verses: CachedVerse[];
-  lastUpdated: number;
-}
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
-/**
- * Generates a unique document ID for a chapter's verses
- */
-function getChapterDocId(version: string, bookId: string, chapter: number): string {
-  return `${version}_${bookId}_${chapter}`;
-}
-
-/**
- * Retrieves verses from cache if available, otherwise fetches from API and caches
- */
-export async function getVerses(version: string, bookId: string, chapter: number): Promise<CachedVerse[]> {
+export async function getVerses(version: string, book: string, chapter: number): Promise<VerseData[]> {
   try {
-    // Try to get from cache first
-    const docRef = doc(db, VERSES_COLLECTION, getChapterDocId(version, bookId, chapter));
+    // Check Firebase cache first
+    const docRef = doc(db, 'verses', `${version}_${book}_${chapter}`);
     const docSnap = await getDoc(docRef);
-
+    
     if (docSnap.exists()) {
       const data = docSnap.data() as ChapterVerses;
       
-      // Check if cache is older than 7 days
-      const cacheAge = Date.now() - data.lastUpdated;
-      const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-      
-      if (cacheAge < CACHE_TTL) {
-        console.log('Serving verses from cache');
+      // Check if cache is still valid
+      if (Date.now() - data.timestamp < CACHE_EXPIRY) {
+        console.log('Using cached verses');
         return data.verses;
       }
     }
-
-    // If not in cache or cache is old, fetch from API
+    
+    // If not in cache or expired, fetch from API
     console.log('Fetching verses from API');
-    const verses = await fetchVerses(version, bookId, chapter);
+    const verses = await bibleApi.getChapterVerses(version, book, chapter);
     
-    // Transform API response to our cache format
-    const cachedVerses: CachedVerse[] = verses.map(verse => ({
-      number: verse.number,
-      content: verse.text,
-      version,
-      bookId,
-      chapter,
-      lastUpdated: Date.now()
+    // Transform verses to match expected format
+    const verseData: VerseData[] = verses.map((verse: BibleVerse) => ({
+      number: verse.number as number, // We know it's a number in this context
+      content: verse.text
     }));
-
-    // Cache the verses
-    const chapterData: ChapterVerses = {
-      version,
-      bookId,
-      chapter,
-      verses: cachedVerses,
-      lastUpdated: Date.now()
-    };
-
-    await setDoc(docRef, chapterData);
     
-    return cachedVerses;
+    // Cache the verses
+    const chapterVerses: ChapterVerses = {
+      version,
+      book,
+      chapter,
+      verses: verseData,
+      timestamp: Date.now()
+    };
+    
+    await setDoc(docRef, chapterVerses);
+    
+    return verseData;
   } catch (error) {
-    console.error('Error getting verses:', error);
+    console.error('Error in getVerses:', error);
     throw error;
   }
 }
 
-/**
- * Force updates the cache for a specific chapter
- */
-export async function refreshVerseCache(version: string, bookId: string, chapter: number): Promise<CachedVerse[]> {
+export async function getVerseCommentary(reference: string): Promise<string | null> {
   try {
-    const verses = await fetchVerses(version, bookId, chapter);
+    const docRef = doc(db, 'commentary', reference);
+    const docSnap = await getDoc(docRef);
     
-    const cachedVerses: CachedVerse[] = verses.map(verse => ({
-      number: verse.number,
-      content: verse.text,
-      version,
-      bookId,
-      chapter,
-      lastUpdated: Date.now()
-    }));
-
-    const chapterData: ChapterVerses = {
-      version,
-      bookId,
-      chapter,
-      verses: cachedVerses,
-      lastUpdated: Date.now()
-    };
-
-    const docRef = doc(db, VERSES_COLLECTION, getChapterDocId(version, bookId, chapter));
-    await setDoc(docRef, chapterData);
+    if (docSnap.exists()) {
+      return docSnap.data().content;
+    }
     
-    return cachedVerses;
+    return null;
   } catch (error) {
-    console.error('Error refreshing verse cache:', error);
-    throw error;
+    console.error('Error getting verse commentary:', error);
+    return null;
   }
 } 

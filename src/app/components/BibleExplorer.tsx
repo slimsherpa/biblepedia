@@ -129,39 +129,23 @@ export default function BibleExplorer() {
     let isCancelled = false;
 
     async function loadVerses() {
-      console.log('Chapter changed to:', selectedChapter);
-      
-      // Clear verses immediately when chapter changes
-      setVerses([]);
-      
-      if (!selectedBookId || !selectedChapter) {
+      if (!selectedBookId || !selectedChapter || selectedChapter === 'S') {
+        // Only clear verses if we don't have valid selection
+        setVerses([]);
         return;
       }
 
       setLoading(true);
       try {
-        // Handle summary chapter
-        if (selectedChapter === 'S') {
-          console.log('Loading summary chapter');
-          if (!isCancelled) {
-            setVerses([{
-              number: 'S' as const,
-              content: 'Summary text summary text summary text summary text summary text'
-            }]);
-            setError(null);
-          }
-          return;
-        }
-
         console.log('Loading regular chapter');
-        // Handle regular chapter
+        // Use Firebase cache system which will handle API fallback
         const data = await getVerses(selectedVersion, selectedBookId, selectedChapter);
         if (!isCancelled) {
           const newVerses = [
             // Add summary verse at the start of each chapter
             { number: 'S' as const, content: 'Summary text summary text summary text summary text' },
             ...data.map(verse => ({
-              number: verse.number as number,
+              number: verse.number,
               content: verse.content
             }))
           ];
@@ -189,15 +173,21 @@ export default function BibleExplorer() {
     };
   }, [selectedBookId, selectedChapter, selectedVersion]);
 
-  // Reset verse when chapter changes
+  // Reset verse when chapter changes, but only if chapter is actually different
   useEffect(() => {
-    setSelectedVerse(null);
+    if (selectedVerse !== null) {
+      setSelectedVerse(null);
+    }
   }, [selectedChapter]);
 
-  // Reset chapter and verse when book changes
+  // Reset chapter and verse when book changes, but only if book is actually different
   useEffect(() => {
-    setSelectedChapter(null);
-    setSelectedVerse(null);
+    if (selectedChapter !== null) {
+      setSelectedChapter(null);
+    }
+    if (selectedVerse !== null) {
+      setSelectedVerse(null);
+    }
   }, [selectedBookId]);
 
   return (
