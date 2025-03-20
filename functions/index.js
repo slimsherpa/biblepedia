@@ -1,6 +1,5 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { defineString } = require('firebase-functions/params');
-const cors = require('cors')({ origin: true });
 const fetch = require('node-fetch');
 
 // Get the API key from environment variables
@@ -11,10 +10,11 @@ exports.nextServer = onRequest((req, res) => {
 });
 
 exports.bibleApi = onRequest(async (req, res) => {
-  // Enable CORS with proper headers
+  // Set CORS headers
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, api-key');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, api-key');
+  res.set('Access-Control-Max-Age', '3600');
 
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,9 +38,9 @@ exports.bibleApi = onRequest(async (req, res) => {
       return;
     }
 
-    // Ensure path starts with v1 and remove any leading/trailing slashes
+    // Remove any leading/trailing slashes and ensure proper path format
     const path = req.path.replace(/^\/+/, '').replace(/\/+$/, '');
-    const apiUrl = `https://api.scripture.api.bible/v1/${path}`;
+    const apiUrl = `https://api.scripture.api.bible/v1/${path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
 
     console.log('Forwarding request to:', apiUrl);
 
@@ -82,7 +82,7 @@ exports.bibleApi = onRequest(async (req, res) => {
       return;
     }
 
-    // Forward the response with proper status
+    // Forward the response with proper status and CORS headers
     res.status(response.status).json(data);
   } catch (error) {
     console.error('Bible API Error:', error);

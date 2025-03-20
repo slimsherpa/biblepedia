@@ -1,8 +1,9 @@
 import "./globals.css";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
+import Link from "next/link";
 
 export const metadata = {
-  title: "biblepedia.io - A scholarly Bible wiki",
+  title: "biblepedia.io",
   description: "A scholarly Bible wiki for academic study and research",
 };
 
@@ -27,6 +28,14 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
+          <div className="flex items-center justify-between p-4 bg-indigo-700 text-white">
+            <Link href="/" className="text-2xl font-bold">
+              biblepedia.io
+            </Link>
+            <Link href="/debug" className="text-sm text-gray-300 hover:text-white">
+              Debug
+            </Link>
+          </div>
           {children}
         </AuthProvider>
       </body>

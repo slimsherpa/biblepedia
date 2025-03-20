@@ -1,201 +1,139 @@
-import { getFirestore, doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Book, Chapter, Verse } from './bibleApi';
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  version: string;
+// Helper function to create a valid Firestore document path
+function createValidDocPath(segments: string[]): string {
+  return segments
+    .map(segment => segment.replace(/[~*/[\]]/g, '_')) // Replace invalid characters
+    .join('_');
 }
 
-const CACHE_VERSION = '1.0';
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-
-/**
- * Creates a cache key from the path components
- */
-function createCacheKey(type: string, ...components: string[]): string {
-  return components.join('-');
-}
-
-/**
- * Creates a Firestore document path for a cache entry
- */
-function createFirestorePath(type: string, key: string): string {
-  return `${type}s/${key}`; // e.g. "books/nrsv-genesis"
-}
-
-/**
- * Check if localStorage is available
- */
-function isLocalStorageAvailable() {
+// Helper function to safely read from Firestore
+async function safeFirestoreRead(path: string) {
   try {
-    const test = '__test__';
-    localStorage.setItem(test, test);
-    localStorage.removeItem(test);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
- * Get data from localStorage
- */
-function getFromLocalStorage<T>(key: string): CacheEntry<T> | null {
-  if (!isLocalStorageAvailable()) return null;
-  
-  try {
-    const item = localStorage.getItem(key);
-    if (!item) return null;
-    
-    const cacheEntry = JSON.parse(item) as CacheEntry<T>;
-    if (!cacheEntry || !cacheEntry.timestamp || !cacheEntry.version) return null;
-    
-    // Check if cache is valid
-    if (cacheEntry.version !== CACHE_VERSION || 
-        Date.now() - cacheEntry.timestamp > CACHE_TTL) {
-      localStorage.removeItem(key);
-      return null;
+    const docRef = doc(db, 'bible-cache', path);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Check if cache is still valid (24 hours)
+      if (data.timestamp && (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000) {
+        return data.content;
+      }
     }
-    
-    return cacheEntry;
-  } catch (e) {
-    console.warn('Error reading from localStorage:', e);
+    return null;
+  } catch (error) {
+    console.warn('Error reading from cache:', error);
     return null;
   }
 }
 
-/**
- * Save data to localStorage
- */
-function saveToLocalStorage<T>(key: string, data: T) {
-  if (!isLocalStorageAvailable()) return;
-  
+// Helper function to safely write to Firestore
+async function safeFirestoreWrite(path: string, content: any) {
   try {
-    const cacheEntry: CacheEntry<T> = {
-      data,
-      timestamp: Date.now(),
-      version: CACHE_VERSION
-    };
-    localStorage.setItem(key, JSON.stringify(cacheEntry));
-  } catch (e) {
-    console.warn('Error writing to localStorage:', e);
-  }
-}
-
-/**
- * Save data to Firestore in the background
- */
-async function saveToFirestore<T>(type: string, key: string, data: T) {
-  try {
-    const db = getFirestore();
-    const cacheRef = doc(db, 'bible-cache', createFirestorePath(type, key));
-    
-    const cacheEntry: CacheEntry<T> = {
-      data,
-      timestamp: Date.now(),
-      version: CACHE_VERSION
-    };
-
-    console.log('Saving to Firestore:', {
-      type,
-      key,
-      path: createFirestorePath(type, key)
+    const docRef = doc(db, 'bible-cache', path);
+    await setDoc(docRef, {
+      content,
+      timestamp: Date.now()
     });
-
-    await setDoc(cacheRef, cacheEntry, { merge: true });
-  } catch (e) {
-    console.warn('Error writing to Firestore:', {
-      type,
-      key,
-      error: e instanceof Error ? e.message : 'Unknown error'
-    });
-  }
-}
-
-/**
- * Generic function to fetch data with caching
- */
-async function fetchWithCache<T>(
-  type: string,
-  key: string,
-  fetchFn: () => Promise<T>
-): Promise<T> {
-  try {
-    // Try to fetch fresh data first
-    console.log('Fetching fresh data:', { type, key });
-    const freshData = await fetchFn();
-    
-    // Save to Firestore in the background
-    saveToFirestore(type, key, freshData).catch(error => {
-      console.warn('Background Firestore sync failed:', error);
-    });
-    
-    return freshData;
+    return true;
   } catch (error) {
-    console.error('Data fetch failed:', error);
-    throw error;
+    console.warn('Error writing to cache:', error);
+    return false;
   }
 }
 
-/**
- * Cache books for a specific Bible version
- */
-export async function cacheBooks(
-  version: string,
-  fetchFn: () => Promise<Book[]>
-): Promise<Book[]> {
-  return fetchWithCache<Book[]>(
-    'book',
-    version,
-    fetchFn
-  );
+export async function cacheBooks(versionId: string, fetcher: () => Promise<Book[]>): Promise<Book[]> {
+  const path = createValidDocPath(['books', versionId]);
+  
+  // Try to get from cache first
+  const cached = await safeFirestoreRead(path);
+  if (cached) {
+    console.log('Cache hit - books:', versionId);
+    return cached;
+  }
+
+  // Fetch fresh data
+  console.log('Fetching fresh data:', { type: 'book', key: versionId });
+  const books = await fetcher();
+  
+  // Try to cache the result
+  await safeFirestoreWrite(path, books);
+  
+  return books;
 }
 
-/**
- * Cache chapters for a specific book
- */
 export async function cacheChapters(
-  version: string,
-  book: string,
-  fetchFn: () => Promise<Chapter[]>
+  versionId: string,
+  bookId: string,
+  fetcher: () => Promise<Chapter[]>
 ): Promise<Chapter[]> {
-  return fetchWithCache<Chapter[]>(
-    'chapter',
-    `${version}-${book}`,
-    fetchFn
-  );
+  const path = createValidDocPath(['chapters', versionId, bookId]);
+  
+  // Try to get from cache first
+  const cached = await safeFirestoreRead(path);
+  if (cached) {
+    console.log('Cache hit - chapters:', { version: versionId, book: bookId });
+    return cached;
+  }
+
+  // Fetch fresh data
+  console.log('Fetching fresh data:', { type: 'chapter', key: `${versionId}-${bookId}` });
+  const chapters = await fetcher();
+  
+  // Try to cache the result
+  await safeFirestoreWrite(path, chapters);
+  
+  return chapters;
 }
 
-/**
- * Cache verses for a specific chapter
- */
 export async function cacheVerses(
-  version: string,
-  book: string,
-  chapter: string,
-  fetchFn: () => Promise<Verse[]>
+  versionId: string,
+  bookId: string,
+  chapterId: string,
+  fetcher: () => Promise<Verse[]>
 ): Promise<Verse[]> {
-  return fetchWithCache<Verse[]>(
-    'verse',
-    `${version}-${book}-${chapter}`,
-    fetchFn
-  );
+  const path = createValidDocPath(['verses', versionId, bookId, chapterId]);
+  
+  // Try to get from cache first
+  const cached = await safeFirestoreRead(path);
+  if (cached) {
+    console.log('Cache hit - verses:', { version: versionId, book: bookId, chapter: chapterId });
+    return cached;
+  }
+
+  // Fetch fresh data
+  console.log('Fetching fresh data:', { type: 'verses', key: `${versionId}-${bookId}-${chapterId}` });
+  const verses = await fetcher();
+  
+  // Try to cache the result
+  await safeFirestoreWrite(path, verses);
+  
+  return verses;
 }
 
-/**
- * Cache a specific verse
- */
 export async function cacheVerse(
-  version: string,
-  book: string,
-  chapter: string,
-  verse: string,
-  fetchFn: () => Promise<Verse>
+  versionId: string,
+  bookId: string,
+  chapterId: string,
+  verseId: string,
+  fetcher: () => Promise<Verse>
 ): Promise<Verse> {
-  return fetchWithCache<Verse>(
-    'verse',
-    `${version}-${book}-${chapter}-${verse}`,
-    fetchFn
-  );
+  const path = createValidDocPath(['verse', versionId, bookId, chapterId, verseId]);
+  
+  // Try to get from cache first
+  const cached = await safeFirestoreRead(path);
+  if (cached) {
+    console.log('Cache hit - verse:', { version: versionId, book: bookId, chapter: chapterId, verse: verseId });
+    return cached;
+  }
+
+  // Fetch fresh data
+  console.log('Fetching fresh data:', { type: 'verse', key: `${versionId}-${bookId}-${chapterId}-${verseId}` });
+  const verse = await fetcher();
+  
+  // Try to cache the result
+  await safeFirestoreWrite(path, verse);
+  
+  return verse;
 } 
