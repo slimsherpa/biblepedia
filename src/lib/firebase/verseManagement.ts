@@ -2,6 +2,8 @@ import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { BibleVerse } from '../types/bible';
 import { FirebaseError } from 'firebase/app';
+import { checkFirebasePermissions } from './permissions';
+import { fetchVerses } from '@/lib/api/bibleApi';
 
 interface VerseData {
   number: number | 'S';
@@ -31,33 +33,10 @@ interface VersionMetadata {
 }
 
 const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days for metadata
-const VERSE_CACHE_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30 days for verses
+const VERSE_CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour for verses
 
 // Cache version metadata in memory
 const versionMetadataCache = new Map<string, VersionMetadata>();
-
-// Track if we have Firebase permissions
-let hasFirebasePermissions: boolean | null = null;
-
-async function checkFirebasePermissions(): Promise<boolean> {
-  if (hasFirebasePermissions !== null) {
-    return hasFirebasePermissions;
-  }
-
-  try {
-    // Try to read a test document
-    const testRef = doc(db, '_test_permissions', 'test');
-    await getDoc(testRef);
-    hasFirebasePermissions = true;
-    return true;
-  } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.warn('Firebase permissions not available:', error.message);
-      hasFirebasePermissions = false;
-    }
-    return false;
-  }
-}
 
 async function fetchVersionMetadataFromAPI(version: string): Promise<VersionMetadata> {
   // Get books list
@@ -208,7 +187,23 @@ export async function getVerses(version: string, book: string, chapter: number):
     
     // If not in Firebase or expired, fetch from API
     console.log('Fetching verses from API');
-    const verses = await fetchVersesFromAPI(version, book, chapter);
+    const verses = await fetchVerses(version, `${book}.${chapter}`);
+    
+    // Transform the verses into the expected format
+    const transformedVerses: VerseData[] = [
+      // Add summary verse
+      {
+        number: 'S' as const,
+        content: 'Summary text summary text summary text summary text',
+        reference: `${book}.${chapter}.S`
+      },
+      // Add actual verses
+      ...verses.map(verse => ({
+        number: parseInt(verse.id.split('.')[2]),
+        content: verse.content,
+        reference: verse.reference
+      }))
+    ];
     
     // Cache in Firebase if we have permissions
     if (await checkFirebasePermissions()) {
@@ -217,7 +212,7 @@ export async function getVerses(version: string, book: string, chapter: number):
           version,
           book,
           chapter,
-          verses,
+          verses: transformedVerses,
           timestamp: Date.now()
         };
         
@@ -228,7 +223,7 @@ export async function getVerses(version: string, book: string, chapter: number):
       }
     }
     
-    return verses;
+    return transformedVerses;
   } catch (error) {
     console.error('Error in getVerses:', error);
     throw error;

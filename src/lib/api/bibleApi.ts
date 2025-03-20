@@ -84,23 +84,19 @@ const API_KEY = process.env.NEXT_PUBLIC_BIBLE_API_KEY || process.env.BIBLE_API_K
 const BASE_URL = 'https://api.scripture.api.bible/v1';
 
 async function fetchFromBibleApi(path: string) {
-  if (!API_KEY) {
-    console.error('Environment variables:', {
-      NEXT_PUBLIC_BIBLE_API_KEY: process.env.NEXT_PUBLIC_BIBLE_API_KEY,
-      BIBLE_API_KEY: process.env.BIBLE_API_KEY,
-      NODE_ENV: process.env.NODE_ENV
-    });
-    throw new Error('Bible API key not found. Please check environment variables.');
-  }
-
   try {
     const fullUrl = `${BASE_URL}/${path}`;
     console.log('Fetching from Bible API:', { url: fullUrl });
     
+    if (!API_KEY) {
+      throw new Error('Bible API key not found');
+    }
+    
     const response = await fetch(fullUrl, {
       headers: {
         'api-key': API_KEY,
-      },
+        'Accept': 'application/json'
+      }
     });
 
     if (!response.ok) {
@@ -113,8 +109,15 @@ async function fetchFromBibleApi(path: string) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.data;
+    const responseData = await response.json();
+    
+    // The Bible API always returns data in a 'data' property
+    if (!responseData.data) {
+      console.error('Unexpected API response structure:', responseData);
+      throw new Error('Unexpected API response structure');
+    }
+
+    return responseData.data;
   } catch (error) {
     console.error('Bible API fetch error:', error);
     throw error;
@@ -145,35 +148,77 @@ export async function fetchChapters(version: string, bookId: string): Promise<Ch
 
 /**
  * Fetches all verses for a specific chapter
+ * Note: This only returns verse metadata. To get content, use fetchVerse for each verse.
  */
 export async function fetchVerses(version: string, chapterId: string): Promise<Verse[]> {
-  const data = await fetchFromBibleApi(`bibles/${version}/chapters/${chapterId}/verses`);
-  
-  // Fetch the actual content for each verse
-  const versesWithContent = await Promise.all(
-    data.map(async (verse: any) => {
-      try {
-        const verseContent = await fetchFromBibleApi(`bibles/${version}/verses/${verse.id}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`);
-        return {
-          ...verse,
-          content: verseContent.content
-        };
-      } catch (error) {
-        console.error(`Error fetching verse content for ${verse.id}:`, error);
-        return {
-          ...verse,
-          content: 'Error loading verse content'
-        };
-      }
-    })
-  );
+  try {
+    // First get the verse metadata
+    console.log(`Fetching verses for chapter ${chapterId}`);
+    const verses = await fetchFromBibleApi(`bibles/${version}/chapters/${chapterId}/verses`);
+    
+    if (!Array.isArray(verses)) {
+      console.error('Expected verses to be an array:', verses);
+      throw new Error('Invalid verses response from API');
+    }
 
-  return versesWithContent;
+    console.log(`Found ${verses.length} verses, fetching content for each...`);
+    
+    // Then fetch the actual content for each verse
+    const versesWithContent = await Promise.all(
+      verses.map(async (verse: any) => {
+        try {
+          console.log(`Fetching content for verse ${verse.id}`);
+          // Get the actual verse content using the verse ID
+          const verseData = await fetchVerse(version, verse.id);
+          return {
+            ...verse,
+            ...verseData
+          };
+        } catch (error: any) {
+          console.error(`Error fetching verse content for ${verse.id}:`, error);
+          return {
+            ...verse,
+            content: `Error loading verse content: ${error?.message || 'Unknown error'}`,
+            reference: verse.reference || '',
+            verseCount: 1,
+            copyright: ''
+          };
+        }
+      })
+    );
+
+    console.log(`Successfully fetched content for ${versesWithContent.length} verses`);
+    return versesWithContent;
+  } catch (error: any) {
+    console.error('Error in fetchVerses:', error);
+    throw error;
+  }
 }
 
 /**
- * Fetches a specific verse
+ * Fetches a specific verse with its content
+ * Following the API documentation at https://docs.api.bible/tutorials/getting-a-specific-verse
  */
 export async function fetchVerse(version: string, verseId: string): Promise<Verse> {
-  return fetchFromBibleApi(`bibles/${version}/verses/${verseId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`);
+  const data = await fetchFromBibleApi(
+    `bibles/${version}/verses/${verseId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false&use-org-id=false`
+  );
+  
+  // Ensure we have the required fields
+  if (!data.content) {
+    console.error('Missing verse content in response:', data);
+    throw new Error('Missing verse content in API response');
+  }
+
+  return {
+    id: data.id,
+    orgId: data.orgId || data.id,
+    bibleId: data.bibleId,
+    bookId: data.bookId,
+    chapterId: data.chapterId,
+    content: data.content,
+    reference: data.reference,
+    verseCount: 1,
+    copyright: data.copyright || ''
+  };
 } 
