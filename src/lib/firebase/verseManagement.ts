@@ -4,6 +4,7 @@ import { BibleVerse } from '../types/bible';
 import { FirebaseError } from 'firebase/app';
 import { checkFirebasePermissions } from './permissions';
 import { fetchVerses } from '@/lib/api/bibleApi';
+import { VerseCommentary } from '@/lib/types/commentary';
 
 interface VerseData {
   number: number | 'S';
@@ -230,14 +231,14 @@ export async function getVerses(version: string, book: string, chapter: number):
   }
 }
 
-export async function getVerseCommentary(reference: string): Promise<string | null> {
+export async function getVerseCommentary(reference: string): Promise<VerseCommentary | null> {
   if (await checkFirebasePermissions()) {
     try {
       const docRef = doc(db, 'commentary', reference);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        return docSnap.data().content;
+        return docSnap.data() as VerseCommentary;
       }
     } catch (error) {
       console.warn('Error getting verse commentary:', error);

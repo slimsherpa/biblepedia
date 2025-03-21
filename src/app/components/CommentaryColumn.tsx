@@ -139,7 +139,7 @@ export default function CommentaryColumn({
             return {
               version: v.id,
               displayName: v.displayName,
-              text: data.text,
+              text: data.content,
               language: v.language,
               type: v.type
             };

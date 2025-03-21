@@ -195,6 +195,38 @@ select {
   @apply text-sm text-gray-700 leading-relaxed;
 }
 
+/* Prose styles for commentary */
+.prose {
+  @apply text-gray-900;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  @apply text-gray-900 font-semibold mt-6 mb-4;
+}
+
+.prose p {
+  @apply text-gray-800 mb-4;
+}
+
+.prose ul, .prose ol {
+  @apply text-gray-800 mb-4;
+}
+
+.prose a {
+  @apply text-blue-600 hover:text-blue-800;
+}
+
+/* Modal styles */
+.modal-content {
+  @apply text-gray-900;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.modal-content input, .modal-content textarea {
+  @apply text-gray-900;
+}
+
 /* List dividers */
 .divided-list {
   @apply divide-y divide-gray-100;

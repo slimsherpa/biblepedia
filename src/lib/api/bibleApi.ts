@@ -163,13 +163,18 @@ export async function fetchVerses(version: string, chapterId: string): Promise<V
 
     console.log(`Found ${verses.length} verses, fetching content for each...`);
     
+    // Parse the chapterId to get book and chapter
+    const [bookId, chapterNum] = chapterId.split('.');
+    
     // Then fetch the actual content for each verse
     const versesWithContent = await Promise.all(
       verses.map(async (verse: any) => {
         try {
+          // Extract verse number from verse.id (format: BOOK.CHAPTER.VERSE)
+          const verseNum = parseInt(verse.id.split('.')[2]);
           console.log(`Fetching content for verse ${verse.id}`);
           // Get the actual verse content using the verse ID
-          const verseData = await fetchVerse(version, verse.id);
+          const verseData = await fetchVerse(version, bookId, parseInt(chapterNum), verseNum);
           return {
             ...verse,
             ...verseData
@@ -199,26 +204,34 @@ export async function fetchVerses(version: string, chapterId: string): Promise<V
  * Fetches a specific verse with its content
  * Following the API documentation at https://docs.api.bible/tutorials/getting-a-specific-verse
  */
-export async function fetchVerse(version: string, verseId: string): Promise<Verse> {
-  const data = await fetchFromBibleApi(
-    `bibles/${version}/verses/${verseId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false&use-org-id=false`
-  );
-  
-  // Ensure we have the required fields
-  if (!data.content) {
-    console.error('Missing verse content in response:', data);
-    throw new Error('Missing verse content in API response');
-  }
+export async function fetchVerse(version: string, bookId: string, chapter: number, verse: number): Promise<Verse> {
+  try {
+    // Construct the verse ID in the format required by the API
+    const verseId = `${bookId}.${chapter}.${verse}`;
+    
+    const data = await fetchFromBibleApi(
+      `bibles/${version}/verses/${verseId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false&use-org-id=false`
+    );
+    
+    // Ensure we have the required fields
+    if (!data.content) {
+      console.error('Missing verse content in response:', data);
+      throw new Error('Missing verse content in API response');
+    }
 
-  return {
-    id: data.id,
-    orgId: data.orgId || data.id,
-    bibleId: data.bibleId,
-    bookId: data.bookId,
-    chapterId: data.chapterId,
-    content: data.content,
-    reference: data.reference,
-    verseCount: 1,
-    copyright: data.copyright || ''
-  };
+    return {
+      id: data.id,
+      orgId: data.orgId || data.id,
+      bibleId: data.bibleId,
+      bookId: data.bookId,
+      chapterId: data.chapterId,
+      content: data.content,
+      reference: data.reference,
+      verseCount: 1,
+      copyright: data.copyright || ''
+    };
+  } catch (error) {
+    console.error('Error fetching verse:', { version, bookId, chapter, verse, error });
+    throw error;
+  }
 } 

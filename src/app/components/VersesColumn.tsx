@@ -63,7 +63,8 @@ export default function VersesColumn({
           incomingVerses.map(async (verse) => {
             // Use the provided reference or generate one
             const reference = verse.reference || `${book.toUpperCase()}.${chapter}.${verse.number}`;
-            const hasCommentary = await getVerseCommentary(reference) !== null;
+            const commentary = await getVerseCommentary(reference);
+            const hasCommentary = commentary !== null && commentary.currentContent && commentary.currentContent.trim() !== '';
             
             return {
               number: verse.number,
