@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getVerseCommentary } from '@/lib/firebase/verseManagement';
+import { getVerseCommentary } from '@/lib/firebase/commentaryManagement';
 import classNames from 'classnames';
 
 interface VersesColumnProps {
@@ -62,8 +62,8 @@ export default function VersesColumn({
       try {
         const processed = await Promise.all(
           incomingVerses.map(async (verse) => {
-            // Use the provided reference or generate one
-            const reference = verse.reference || `${book.toUpperCase()}.${chapter}.${verse.number}`;
+            // Format reference to match the Firebase collection format (e.g., "GEN.1.1")
+            const reference = `${book.toUpperCase()}.${chapter}.${verse.number}`;
             const commentary = await getVerseCommentary(reference);
             // A verse has commentary if it exists and has non-empty content
             const hasCommentary = commentary !== null && commentary.currentContent && commentary.currentContent.trim() !== '';
@@ -128,12 +128,15 @@ export default function VersesColumn({
               const isSummaryVerse = verse.number === 'S';
 
               const verseNumberClass = classNames(
-                'verse-commentary-indicator',
+                'verse-number',
+                'inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0',
                 {
-                  'has-commentary': hasCommentary,
-                  'selected': isSelected,
-                  'summary': isSummaryVerse,
-                  'default': !hasCommentary && !isSelected && !isSummaryVerse
+                  'bg-red-50 text-red-600 border border-red-200': hasCommentary && !isSelected,
+                  'bg-blue-50 text-blue-700': isSelected && !hasCommentary,
+                  'bg-red-100 text-red-700': isSelected && hasCommentary,
+                  'bg-gray-50 text-gray-600': !hasCommentary && !isSelected,
+                  'font-medium': isSelected || isSummaryVerse,
+                  'italic': isSummaryVerse
                 }
               );
 
@@ -147,7 +150,7 @@ export default function VersesColumn({
                   }`}
                   onClick={() => onSelectVerse(verse.number)}
                 >
-                  <span className={`${verseNumberClass} shrink-0`}>
+                  <span className={verseNumberClass}>
                     {verseNumber}
                   </span>
                   <span className="flex-1 leading-relaxed">{verseText}</span>
