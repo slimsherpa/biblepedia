@@ -120,7 +120,7 @@ export default function VersesColumn({
           <div className="text-sm text-gray-500 font-sans">No verses available</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {versesWithCommentary.map((verse) => {
+            {versesWithCommentary.map((verse, index) => {
               const verseNumber = verse.number === 'S' ? 'S' : verse.number;
               const verseText = verse.text;
               const hasCommentary = verse.hasCommentary;
@@ -139,7 +139,7 @@ export default function VersesColumn({
 
               return (
                 <button
-                  key={verse.reference}
+                  key={`${verse.reference}-${index}`}
                   className={`w-full py-2 px-3 text-left transition-all duration-200 font-sans text-sm flex items-start gap-3 group ${
                     selectedVerse === verse.number
                       ? 'bg-blue-50 text-blue-700 font-medium' 

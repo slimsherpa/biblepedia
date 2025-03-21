@@ -18,6 +18,12 @@ interface BibleVersion {
   fallbackId?: string;
 }
 
+interface Verse {
+  number: number | 'S';
+  content: string;
+  reference: string;
+}
+
 interface Book {
   id: string;
   name: string;
@@ -89,7 +95,7 @@ export default function BibleExplorer() {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | 'S' | null>(null);
   const [selectedVerse, setSelectedVerse] = useState<number | 'S' | null>(null);
-  const [verses, setVerses] = useState<{ number: number | 'S'; content: string }[]>([]);
+  const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -141,14 +147,12 @@ export default function BibleExplorer() {
         // Use Firebase cache system which will handle API fallback
         const data = await getVerses(selectedVersion, selectedBookId, selectedChapter);
         if (!isCancelled) {
-          const newVerses = [
-            // Add summary verse at the start of each chapter
-            { number: 'S' as const, content: 'Summary text summary text summary text summary text' },
-            ...data.map(verse => ({
-              number: verse.number,
-              content: verse.content
-            }))
-          ];
+          // Map the verses directly without adding another summary verse
+          const newVerses = data.map(verse => ({
+            number: verse.number,
+            content: verse.content,
+            reference: verse.reference
+          }));
           console.log('Setting verses:', newVerses.length);
           setVerses(newVerses);
           setError(null);

@@ -103,18 +103,8 @@ async function fetchVersesFromAPI(version: string, book: string, chapter: number
 
   const verses = await Promise.all(versePromises);
   
-  // Filter out any existing summary verses first
-  const filteredVerses = verses.filter(verse => verse.number !== 'S');
-  
-  // Add single summary verse at the start
-  return [
-    { 
-      number: 'S' as const, 
-      content: 'Summary text summary text summary text summary text',
-      reference: `${book}.${chapter}.S`
-    },
-    ...filteredVerses
-  ];
+  // Filter out any existing summary verses
+  return verses.filter(verse => verse.number !== 'S');
 }
 
 export async function getVersionMetadata(version: string): Promise<VersionMetadata | null> {
@@ -192,16 +182,9 @@ export async function getVerses(version: string, book: string, chapter: number):
     const verses = await fetchVerses(version, `${book}.${chapter}`);
     
     // Transform the verses into the expected format
-    const transformedVerses: VerseData[] = [
-      // Add summary verse only if it doesn't exist
-      {
-        number: 'S' as const,
-        content: 'Summary text summary text summary text summary text',
-        reference: `${book.toUpperCase()}.${chapter}.S`
-      }
-    ];
+    const transformedVerses: VerseData[] = [];
 
-    // Add regular verses
+    // Add regular verses first
     for (const verse of verses) {
       if (verse && typeof verse === 'object' && 'id' in verse) {
         const verseContent = 'text' in verse && typeof verse.text === 'string' 
@@ -216,6 +199,16 @@ export async function getVerses(version: string, book: string, chapter: number):
           reference: verse.reference
         });
       }
+    }
+
+    // Add summary verse only if it doesn't already exist
+    const hasSummaryVerse = transformedVerses.some(verse => verse.number === 'S');
+    if (!hasSummaryVerse) {
+      transformedVerses.unshift({
+        number: 'S' as const,
+        content: 'Summary text summary text summary text summary text',
+        reference: `${book.toUpperCase()}.${chapter}.S`
+      });
     }
 
     // Cache in Firebase if we have permissions
