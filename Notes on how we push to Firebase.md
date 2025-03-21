@@ -2,6 +2,21 @@
 
 We use Windows Powershell for deployments.
 
+## Environment Variables
+
+1. Local Development:
+   - Use `.env.local` file
+   - Must prefix Bible API key with `NEXT_PUBLIC_` for client-side access
+   - Example: `NEXT_PUBLIC_BIBLE_API_KEY=your_key_here`
+
+2. Production (Firebase):
+   - Set environment variables in Firebase Console
+   - Go to Project Settings > Functions > Environment Variables
+   - Must match the same names as local development
+   - Current required variables:
+     - `NEXT_PUBLIC_BIBLE_API_KEY`
+     - All Firebase config variables
+
 ## Common Commands
 
 1. `firebase deploy --only hosting`

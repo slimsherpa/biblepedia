@@ -9,6 +9,26 @@ import { BIBLE_VERSIONS } from '@/lib/api/bibleApi'
 import { fetchVerse } from '@/lib/api/bibleApi'
 import Image from 'next/image'
 
+// Extend the BibleVersion interface
+interface ExtendedBibleVersion {
+  id: string;
+  name: string;
+  abbreviation: string;
+  language: string;
+  isSupported: boolean;
+  type: 'modern' | 'classical' | 'original';
+  displayName: string;
+}
+
+// Map the API versions to our extended version with type and display info
+const EXTENDED_VERSIONS: ExtendedBibleVersion[] = BIBLE_VERSIONS.map(v => ({
+  ...v,
+  type: v.language === 'en' ? 
+        (v.id === '9879dbb7cfe39e4d-01' ? 'modern' : 'classical') :
+        'original',
+  displayName: v.name
+}));
+
 interface TranslationType {
   version: string;
   text: string;
@@ -224,10 +244,10 @@ function DebateThread({ post, depth = 0, onUpdate }: {
   )
 }
 
-// Add a helper function to get version display name
+// Helper function to get version display name
 function getVersionDisplayName(versionId: string): string {
-  const version = BIBLE_VERSIONS.find(v => v.id === versionId);
-  return version?.name || versionId;
+  const version = EXTENDED_VERSIONS.find(v => v.id === versionId);
+  return version?.displayName || versionId;
 }
 
 export default function EditCommentaryModal({
@@ -259,29 +279,48 @@ export default function EditCommentaryModal({
       if (!book || !chapter || !verse) return;
 
       try {
-        const translationPromises = BIBLE_VERSIONS
-          .filter(v => v.isSupported)
-          .map(async (v) => {
-            try {
-              const data = await fetchVerse(v.id, book, chapter, verse);
-              const type = v.language === 'en' 
-                ? (v.id === '9879dbb7cfe39e4d-01' ? 'modern' as const : 'classical' as const)
-                : 'original' as const;
-              
-              return {
-                version: v.id,
-                displayName: v.name,
-                text: data.text,
-                type
-              };
-            } catch (err) {
-              console.error(`Error loading verse for version ${v.id}:`, err);
+        // Get available versions based on the book
+        const availableVersions = [
+          // Modern English (NRSV)
+          { id: '9879dbb7cfe39e4d-01', name: 'NRSV', type: 'modern' as const },
+          // Classical English (KJV)
+          { id: 'de4e12af7f28f599-01', name: 'KJV', type: 'classical' as const },
+          // Hebrew Bible
+          { id: '0b262f1ed7f084a6-01', name: 'Hebrew Bible', type: 'original' as const },
+          // Greek (Septuagint)
+          { id: 'c114c33098c4fef1-01', name: 'Brenton Greek Septuagint', type: 'original' as const }
+        ];
+
+        const translationPromises = availableVersions.map(async (v) => {
+          try {
+            console.log(`Fetching verse for version ${v.id}`);
+            const data = await fetchVerse(v.id, book, chapter, verse);
+            console.log(`Received data for ${v.id}:`, data);
+            
+            // Extract the verse text from the response
+            const verseText = typeof data === 'string' ? data : data.content;
+            console.log(`Extracted text for ${v.name}:`, verseText);
+            
+            if (!verseText) {
+              console.warn(`No text found for version ${v.name}`, data);
               return null;
             }
-          });
+
+            return {
+              version: v.id,
+              displayName: v.name,
+              text: verseText,
+              type: v.type
+            };
+          } catch (err) {
+            console.error(`Error loading verse for version ${v.id}:`, err);
+            return null;
+          }
+        });
 
         const results = await Promise.all(translationPromises);
         const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
+        console.log('Final translations:', validResults);
         setAllTranslations(validResults);
       } catch (err) {
         console.error('Error loading translations:', err);
@@ -326,18 +365,22 @@ export default function EditCommentaryModal({
   }
 
   const handlePostDebate = async () => {
-    if (!userProfile || !newDebatePost.trim()) return
+    if (!userProfile || !newDebatePost.trim()) return;
     
-    const success = await addDebatePost(
-      verseId,
-      content,
-      userProfile,
-      newDebatePost
-    );
+    try {
+      const success = await addDebatePost(
+        verseId,
+        newDebatePost,  // Use the debate post content
+        userProfile,
+        undefined      // No parent post ID for top-level posts
+      );
 
-    if (success) {
-      setNewDebatePost('')
-      onDebateUpdate()
+      if (success) {
+        setNewDebatePost('');
+        onDebateUpdate();
+      }
+    } catch (error) {
+      console.error('Error posting debate:', error);
     }
   }
 
@@ -392,33 +435,51 @@ export default function EditCommentaryModal({
 
             <div className="flex-1 overflow-y-auto p-6">
               {/* Translations */}
-              <div className="space-y-3 mb-6">
-                {allTranslations.map((t, i) => (
-                  <div 
-                    key={i} 
-                    className={`p-3 rounded-lg ${
-                      t.type === 'original' 
-                        ? 'bg-blue-50 border border-blue-100' 
-                        : t.type === 'classical'
-                        ? 'bg-gray-50 border border-gray-100'
-                        : 'bg-white border border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-900">
-                        {t.displayName || getVersionDisplayName(t.version)}
+              <div className="space-y-4 mb-6">
+                {/* Modern Translations */}
+                {allTranslations.filter(t => t.type === 'modern').map((t, i) => (
+                  <div key={i} className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                        Modern
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-xs ${
-                        t.type === 'original'
-                          ? 'bg-blue-100 text-blue-800'
-                          : t.type === 'classical'
-                          ? 'bg-gray-200 text-gray-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {t.type}
+                      <span className="text-sm font-medium text-gray-600">
+                        {t.displayName}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">{t.text}</p>
+                    <p className="text-gray-800">{t.text}</p>
+                  </div>
+                ))}
+
+                {/* Classical Translations */}
+                {allTranslations.filter(t => t.type === 'classical').map((t, i) => (
+                  <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-gray-700 bg-gray-200 px-2 py-0.5 rounded">
+                        Classical
+                      </span>
+                      <span className="text-sm font-medium text-gray-600">
+                        {t.displayName}
+                      </span>
+                    </div>
+                    <p className="text-gray-800">{t.text}</p>
+                  </div>
+                ))}
+
+                {/* Original Languages */}
+                {allTranslations.filter(t => t.type === 'original').map((t, i) => (
+                  <div key={i} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
+                        Original
+                      </span>
+                      <span className="text-sm font-medium text-gray-600">
+                        {t.displayName === 'Hebrew Bible' ? 'Hebrew' : 
+                         t.displayName === 'Brenton Greek Septuagint' ? 'LXX' :
+                         t.displayName}
+                      </span>
+                    </div>
+                    <p className="text-gray-800 font-biblepedia">{t.text}</p>
                   </div>
                 ))}
               </div>

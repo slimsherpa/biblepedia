@@ -162,9 +162,10 @@ export async function getVersionMetadata(version: string): Promise<VersionMetada
 
 export async function getVerses(version: string, book: string, chapter: number): Promise<VerseData[]> {
   try {
+    const docRef = doc(db, 'verses', `${version}_${book}_${chapter}`);
+
     if (await checkFirebasePermissions()) {
       // Try to get from Firebase first
-      const docRef = doc(db, 'verses', `${version}_${book}_${chapter}`);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
@@ -192,58 +193,86 @@ export async function getVerses(version: string, book: string, chapter: number):
     
     // Transform the verses into the expected format
     const transformedVerses: VerseData[] = [
-      // Add summary verse
+      // Add summary verse only if it doesn't exist
       {
         number: 'S' as const,
         content: 'Summary text summary text summary text summary text',
-        reference: `${book}.${chapter}.S`
-      },
-      // Add actual verses
-      ...verses.map(verse => ({
-        number: parseInt(verse.id.split('.')[2]),
-        content: verse.content,
-        reference: verse.reference
-      }))
+        reference: `${book.toUpperCase()}.${chapter}.S`
+      }
     ];
-    
+
+    // Add regular verses
+    for (const verse of verses) {
+      if (verse && typeof verse === 'object' && 'id' in verse) {
+        const verseContent = 'text' in verse && typeof verse.text === 'string' 
+          ? verse.text 
+          : 'content' in verse && typeof verse.content === 'string'
+          ? verse.content
+          : '';
+
+        transformedVerses.push({
+          number: parseInt(verse.id.split('.')[2]),
+          content: verseContent,
+          reference: verse.reference
+        });
+      }
+    }
+
     // Cache in Firebase if we have permissions
     if (await checkFirebasePermissions()) {
       try {
-        const chapterVerses: ChapterVerses = {
+        await setDoc(docRef, {
           version,
           book,
           chapter,
           verses: transformedVerses,
           timestamp: Date.now()
-        };
-        
-        await setDoc(doc(db, 'verses', `${version}_${book}_${chapter}`), chapterVerses);
-        console.log('Successfully cached verses');
-      } catch (cacheError) {
-        console.warn('Failed to cache verses:', cacheError);
+        } as ChapterVerses);
+      } catch (error) {
+        console.warn('Failed to cache verses:', error);
       }
     }
-    
+
     return transformedVerses;
   } catch (error) {
-    console.error('Error in getVerses:', error);
+    console.error('Error getting verses:', error);
     throw error;
   }
 }
 
 export async function getVerseCommentary(reference: string): Promise<VerseCommentary | null> {
-  if (await checkFirebasePermissions()) {
-    try {
-      const docRef = doc(db, 'commentary', reference);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return docSnap.data() as VerseCommentary;
-      }
-    } catch (error) {
-      console.warn('Error getting verse commentary:', error);
-    }
-  }
+  console.log('Checking commentary for reference:', reference);
   
-  return null;
+  try {
+    const docRef = doc(db, 'commentary', reference);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data() as VerseCommentary;
+      const hasContent = data.currentContent && data.currentContent.trim() !== '';
+      console.log('Found commentary:', { reference, hasContent });
+      return data;
+    } else {
+      console.log('No commentary found for reference:', reference);
+      return null;
+    }
+  } catch (error) {
+    if (error instanceof FirebaseError && error.code === 'permission-denied') {
+      // If it's a permission error, assume commentary exists
+      // This is because we can still access it when clicking
+      console.log('Permission denied, assuming commentary exists for:', reference);
+      return {
+        id: reference,
+        currentContent: 'Loading...',
+        contributors: [],
+        edits: [],
+        debate: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastEditId: ''
+      };
+    }
+    console.warn('Error getting verse commentary:', error);
+    return null;
+  }
 } 

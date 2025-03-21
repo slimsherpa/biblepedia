@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getVerseCommentary } from '@/lib/firebase/verseManagement';
+import classNames from 'classnames';
 
 interface VersesColumnProps {
   version: string;
@@ -64,7 +65,9 @@ export default function VersesColumn({
             // Use the provided reference or generate one
             const reference = verse.reference || `${book.toUpperCase()}.${chapter}.${verse.number}`;
             const commentary = await getVerseCommentary(reference);
+            // A verse has commentary if it exists and has non-empty content
             const hasCommentary = commentary !== null && commentary.currentContent && commentary.currentContent.trim() !== '';
+            console.log('Verse commentary status:', { reference, hasCommentary });
             
             return {
               number: verse.number,
@@ -81,6 +84,7 @@ export default function VersesColumn({
         }
       } catch (err) {
         console.error('Error processing verses:', err);
+        setError('Failed to load commentary status');
       }
     }
 
@@ -116,33 +120,40 @@ export default function VersesColumn({
           <div className="text-sm text-gray-500 font-sans">No verses available</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {versesWithCommentary.map((verse) => (
-              <button
-                key={verse.reference}
-                className={`w-full py-2 px-3 text-left transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] font-sans text-sm flex items-start group ${
-                  selectedVerse === verse.number
-                    ? 'bg-blue-50 text-blue-700 font-medium' 
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-                onClick={() => onSelectVerse(verse.number)}
-              >
-                <span className={`mr-3 font-medium ${
-                  selectedVerse === verse.number 
-                    ? 'text-blue-700' 
-                    : verse.number === 'S'
-                    ? 'text-green-600'
-                    : 'text-gray-500 group-hover:text-gray-700'
-                }`}>
-                  {verse.number === 'S' ? 'S' : verse.number}
-                </span>
-                <span className="flex-1">{verse.text}</span>
-                {verse.hasCommentary && (
-                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                    ✓
+            {versesWithCommentary.map((verse) => {
+              const verseNumber = verse.number === 'S' ? 'S' : verse.number;
+              const verseText = verse.text;
+              const hasCommentary = verse.hasCommentary;
+              const isSelected = selectedVerse === verse.number;
+              const isSummaryVerse = verse.number === 'S';
+
+              const verseNumberClass = classNames(
+                'verse-commentary-indicator',
+                {
+                  'has-commentary': hasCommentary,
+                  'selected': isSelected,
+                  'summary': isSummaryVerse,
+                  'default': !hasCommentary && !isSelected && !isSummaryVerse
+                }
+              );
+
+              return (
+                <button
+                  key={verse.reference}
+                  className={`w-full py-2 px-3 text-left transition-all duration-200 font-sans text-sm flex items-start gap-3 group ${
+                    selectedVerse === verse.number
+                      ? 'bg-blue-50 text-blue-700 font-medium' 
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                  onClick={() => onSelectVerse(verse.number)}
+                >
+                  <span className={`${verseNumberClass} shrink-0`}>
+                    {verseNumber}
                   </span>
-                )}
-              </button>
-            ))}
+                  <span className="flex-1 leading-relaxed">{verseText}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

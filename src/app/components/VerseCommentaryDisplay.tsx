@@ -84,18 +84,22 @@ export default function VerseCommentaryDisplay({
   async function handleSaveEdit() {
     if (!userProfile || !canAddCommentary(userProfile)) return;
 
-    const success = await createCommentaryEdit(
-      verseId,
-      editContent,
-      editSummary,
-      userProfile
-    );
+    try {
+      const success = await createCommentaryEdit(
+        verseId,
+        editContent,
+        'Updated commentary', // Default summary if none provided
+        userProfile
+      );
 
-    if (success) {
-      await loadCommentary();
-      setIsEditing(false);
-      setEditContent('');
-      setEditSummary('');
+      if (success) {
+        await loadCommentary();
+        setIsEditing(false);
+        setEditContent('');
+        setEditSummary('');
+      }
+    } catch (error) {
+      console.error('Error creating commentary edit:', error);
     }
   }
 
