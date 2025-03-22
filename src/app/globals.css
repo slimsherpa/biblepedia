@@ -134,10 +134,6 @@ select {
   @apply text-sm text-gray-900 leading-relaxed font-sans;
 }
 
-.verse-number {
-  @apply text-sm font-medium text-blue-600 mr-2;
-}
-
 /* Column header styles */
 .column-header {
   @apply p-3 border-b bg-white;

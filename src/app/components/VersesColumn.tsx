@@ -128,26 +128,29 @@ export default function VersesColumn({
               const isSummaryVerse = verse.number === 'S';
 
               const verseNumberClass = classNames(
-                'verse-number',
-                'inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0',
+                'inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 text-sm mr-2',
                 {
-                  'bg-red-50 text-red-600 border border-red-200': hasCommentary && !isSelected,
-                  'bg-blue-50 text-blue-700': isSelected && !hasCommentary,
-                  'bg-red-100 text-red-700': isSelected && hasCommentary,
-                  'bg-gray-50 text-gray-600': !hasCommentary && !isSelected,
+                  'text-red-600 bg-red-50': hasCommentary,
+                  'text-blue-600': !hasCommentary && isSelected,
+                  'text-black': !hasCommentary && !isSelected,
                   'font-medium': isSelected || isSummaryVerse,
                   'italic': isSummaryVerse
+                }
+              );
+
+              const buttonClass = classNames(
+                'w-full py-2 px-3 text-left transition-all duration-200 font-sans text-sm flex items-start gap-3 group',
+                {
+                  'bg-blue-50': isSelected,
+                  'text-blue-700': isSelected,
+                  'text-gray-700 hover:bg-gray-50': !isSelected
                 }
               );
 
               return (
                 <button
                   key={`${verse.reference}-${index}`}
-                  className={`w-full py-2 px-3 text-left transition-all duration-200 font-sans text-sm flex items-start gap-3 group ${
-                    selectedVerse === verse.number
-                      ? 'bg-blue-50 text-blue-700 font-medium' 
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
+                  className={buttonClass}
                   onClick={() => onSelectVerse(verse.number)}
                 >
                   <span className={verseNumberClass}>
