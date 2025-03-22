@@ -1,3 +1,9 @@
+As a friendly reminder, this is the API documentation we're trying to hit.
+@https://docs.api.bible/tutorials/getting-a-specific-verse 
+@https://docs.api.bible/tutorials/getting-a-list-of-verses 
+@https://docs.api.bible/tutorials/getting-a-list-of-chapters 
+@https://docs.api.bible/tutorials/getting-a-list-of-books 
+
 # How we use the BIBLE API (simplified)
 
 The Bible API requires a two-step process to fetch verses:
