@@ -42,8 +42,13 @@ export default function ChaptersColumn({
         setLoading(true);
         const data = await fetchChapters(version, book);
         if (Array.isArray(data) && data.length > 0) {
-          // Add summary chapter 'S' at the beginning
-          setChapters([{ number: 'S' }, ...data]);
+          // Filter out intro chapter and convert chapter numbers
+          const filteredData = data
+            .filter(chapter => chapter.number !== 'intro')
+            .map(chapter => ({
+              number: parseInt(chapter.number) as number | 'S'
+            }));
+          setChapters([{ number: 'S' }, ...filteredData]);
           setError(null);
         } else {
           console.error('Invalid data format from Bible API:', data);
