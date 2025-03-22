@@ -233,9 +233,21 @@ export async function getCommentaryEditHistory(verseId: string): Promise<Comment
   if (!commentaryDoc.exists()) return [];
   
   const commentary = commentaryDoc.data() as VerseCommentary;
-  return commentary.edits.sort((a, b) => {
-    const timeA = (a.timestamp as any)?.seconds || 0;
-    const timeB = (b.timestamp as any)?.seconds || 0;
-    return timeB - timeA;
-  });
+  return commentary.edits
+    .filter(edit => edit && edit.author) // Filter out edits with missing author
+    .map(edit => ({
+      ...edit,
+      author: {
+        uid: edit.author?.uid || 'unknown',
+        displayName: edit.author?.displayName || 'Unknown User',
+        role: edit.author?.role || 'user',
+        photoURL: edit.author?.photoURL || '',
+        email: edit.author?.email || ''
+      }
+    }))
+    .sort((a, b) => {
+      const timeA = (a.timestamp as any)?.seconds || 0;
+      const timeB = (b.timestamp as any)?.seconds || 0;
+      return timeB - timeA;
+    });
 } 
